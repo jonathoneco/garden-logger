@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -27,9 +26,7 @@ func launchMenu(items []string, prompt string, colors ...string) (string, error)
 }
 
 func launchNote(filePath string) error {
-	fullPath := filepath.Join(rootDir, filePath)
-
-	cmd := exec.Command("kitty", "-e", "nvim", fullPath)
+	cmd := exec.Command("kitty", "-e", "nvim", filePath)
 
 	cmd.Dir = rootDir
 

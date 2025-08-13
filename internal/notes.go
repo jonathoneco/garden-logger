@@ -5,8 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -14,31 +12,6 @@ import (
 type Note struct {
 	Name string
 	Path string
-}
-
-func findNextIndex(targetDir string) (int, error) {
-	entries, err := os.ReadDir(targetDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return 1, nil
-		}
-		return 0, err
-	}
-
-	var maxIndex int
-	indexPattern := regexp.MustCompile(`^(\d+)\s`)
-
-	for _, entry := range entries {
-		if matches := indexPattern.FindStringSubmatch(entry.Name()); matches !=
-			nil {
-			if index, err := strconv.Atoi(matches[1]); err == nil && index >
-				maxIndex {
-				maxIndex = index
-			}
-		}
-	}
-
-	return maxIndex + 1, nil
 }
 
 func createNewNote(dirPath string) error {
