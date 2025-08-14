@@ -101,16 +101,30 @@ Templates:
 
 - Folder priority as bool in indexing strategy
 
-# Configuration
+- Add logging
+
+## Configuration
 - note root folder
 - default indexing option,can also set per-directory index strategy with a .indexing file dictating the strategy
 
-# Indexing
+## Indexing
 - Numeric
 - Datetime
 - None
 
-
+## Operation Syncing
+- Things I've Considered
+    - use an sync file that I append file operations to, then a small obsidian plugin that reads that sync file and performs the vault operations internally
+        - links would be broken until obsidian opens
+        - once the files are moved the vault operations will fail
+    - use obsidian's http rest api for manipulation with link updates
+        - obsidian doesn't run headlessly, will require obsidian to already be running or launching it, that feels clunky
+    - obsidian-cli or some sync plugins
+        - all of them have some poorly handled edge case or other, and I don't like the idea of running into a dependency issue if obsidian upgrades or something
+- Indexing poses a problem here, since re-indexing is a rename, that means links need to be updated as frequently / deeply as things are re-indexed, not to mention moves or directory renames
+- I think for now, since I don't really use links heavily, I'll skip this and deal with it once I need to
+- Eureka! I can use nvim and ObsidianRename for a headless rename, this is huge
+- I'm thinking in the process of moving things around there will be a lot of moving (i.e. if I'm moving one document up it'll trigger a bunch of updates for that document and the ones around it), I'll do the naive approach first but I think if this hits performance issues I'll need to swap to a model where I cache updates, execute on ui navigation, and don't perform no-ops
 
 ## Install
 

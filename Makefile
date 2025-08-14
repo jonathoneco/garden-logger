@@ -4,7 +4,6 @@
 BINARY_NAME=garden-logger
 BUILD_DIR=.
 INSTALL_DIR=$(HOME)/.local/bin
-SYSTEM_INSTALL_DIR=/usr/local/bin
 
 # Default target
 .PHONY: all
@@ -28,23 +27,11 @@ install: build
 	@echo "Installed to $(INSTALL_DIR)/$(BINARY_NAME)"
 	@echo "Make sure $(INSTALL_DIR) is in your PATH"
 
-# Install system-wide (requires sudo)
-.PHONY: install-system
-install-system: build
-	sudo cp $(BINARY_NAME) $(SYSTEM_INSTALL_DIR)/
-	@echo "Installed to $(SYSTEM_INSTALL_DIR)/$(BINARY_NAME)"
-
 # Uninstall from user directory
 .PHONY: uninstall
 uninstall:
 	rm -f $(INSTALL_DIR)/$(BINARY_NAME)
 	@echo "Removed $(INSTALL_DIR)/$(BINARY_NAME)"
-
-# Uninstall from system directory
-.PHONY: uninstall-system
-uninstall-system:
-	sudo rm -f $(SYSTEM_INSTALL_DIR)/$(BINARY_NAME)
-	@echo "Removed $(SYSTEM_INSTALL_DIR)/$(BINARY_NAME)"
 
 # Run the application
 .PHONY: run

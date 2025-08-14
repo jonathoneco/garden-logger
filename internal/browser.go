@@ -75,13 +75,14 @@ func browse(dirPath string) error {
 	}
 
 	var menuItems []string
-	menuItems = append(menuItems, "New")
 
+	menuItems = append(menuItems, "New")
 	menuItems = append(menuItems, entries...)
 
 	if dirPath != "" {
 		menuItems = append(menuItems, "..")
 	}
+	menuItems = append(menuItems, "./")
 
 	choice, err := launchMenu(menuItems, "Choose note or create new: ")
 	if err != nil {
@@ -99,6 +100,8 @@ func browse(dirPath string) error {
 			parentFolder += "/"
 		}
 		return browse(parentFolder)
+	case ".":
+		return launchDir(dirPath)
 	default:
 		return handleFileOrDirectory(choice, dirPath)
 	}

@@ -3,8 +3,8 @@ package internal
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -15,14 +15,14 @@ type Note struct {
 }
 
 func createNewNote(dirPath string) error {
-	nameCmd := exec.Command("dmenu", "-c", "-sb", "#a3be8c", "-nf", "#d8dee9", "-p", "Enter a name: ")
-	nameCmd.Stdin = strings.NewReader("")
+	name, err := launchMenu([]string{}, "Enter a name: ")
 
-	output, err := nameCmd.Output()
-	name := strings.TrimSpace(string(output))
+	if err != nil {
+		return err
+	}
 
-	if err != nil || name == "" {
-		name = time.Now().Format("2001-01-01")
+	if name == "" {
+		name = time.Now().Format("2006-01-02")
 	}
 
 	var notePath string
@@ -42,6 +42,39 @@ func createNewNote(dirPath string) error {
 	}
 
 	return launchNote(filePath)
+}
+
+func generateSemanticID(dirPath, noteName string) string {
+	// Remove rootDir prefix and clean the path
+	cleanPath := strings.TrimPrefix(dirPath, rootDir)
+	cleanPath = strings.Trim(cleanPath, "/")
+
+	// Split path and remove indexes from each segment
+	var segments []string
+	if cleanPath != "" {
+		pathParts := strings.Split(cleanPath, "/")
+		for _, part := range pathParts {
+			// Remove leading index (e.g., "5 Resources" -> "Resources")
+			cleaned := regexp.MustCompile(`^\d+\s+`).ReplaceAllString(part, "")
+			if cleaned != "" {
+				segments = append(segments, cleaned)
+			}
+		}
+	}
+
+	// Add note name (also strip index)
+	cleanedNoteName := regexp.MustCompile(`^\d+\s+`).ReplaceAllString(noteName, "")
+	segments = append(segments, cleanedNoteName)
+
+	// Convert to lowercase, replace spaces with hyphens, join with underscores
+	var cleanedSegments []string
+	for _, segment := range segments {
+		cleaned := strings.ToLower(segment)
+		cleaned = strings.ReplaceAll(cleaned, " ", "-")
+		cleanedSegments = append(cleanedSegments, cleaned)
+	}
+
+	return strings.Join(cleanedSegments, "_")
 }
 
 func writeNote(dirPath string, note Note) (string, error) {
@@ -65,8 +98,13 @@ func writeNote(dirPath string, note Note) (string, error) {
 	}
 	defer file.Close()
 
-	if _, err := file.WriteString(fmt.Sprintf("# %s\n\n", note.Name)); err != nil {
-		return "", fmt.Errorf("failed to write title: %w", err)
+	// semanticID := generateSemanticID(dirPath, note.Name)
+
+	// frontmatter := fmt.Sprintf("---\naliases: [%s]\n---\n# %s\n\n", semanticID, note.Name)
+	frontmatter := fmt.Sprintf("# %s\n\n", note.Name)
+
+	if _, err := file.WriteString(frontmatter); err != nil {
+		return "", fmt.Errorf("failed to write frontmatter: %w", err)
 	}
 
 	return fullPath, nil
