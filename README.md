@@ -90,6 +90,7 @@ Templates:
     - I'll want to support things like images and other stuff I do in my notes, not sure what the best way to do that with all this indexing is. Maybe just don't index those?
 
 # Follow Ups
+- Fix directory creation
 - Add support for `.` to open the folder in it's own tmux session
 - Turn off obsidian.nvim frontmatter
 - Add support for vim marks

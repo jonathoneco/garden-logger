@@ -3,38 +3,58 @@ package internal
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 )
 
-func sortEntriesDirFirst(dirEntries []os.DirEntry) []string {
-	var dirs, files []string
+// Status
 
-	for _, entry := range dirEntries {
-		name := entry.Name()
-
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-
-		if entry.IsDir() {
-			dirs = append(dirs, name+"/")
-		} else if filepath.Ext(entry.Name()) == ".md" {
-			files = append(files, name)
-		}
-	}
-
-	sort.Strings(dirs)
-	sort.Strings(files)
-
-	result := append(dirs, files...)
-	return result
+type StatusInfo struct {
+	AbsolutePath     string
+	IndexingStrategy string
+	RelativePath     string
 }
 
-func sortEntries(dirEntries []os.DirEntry) []string {
+func formatStatusMessage(info *StatusInfo) string {
+	path := info.RelativePath
+	if path == "" {
+		path = "/"
+	}
+	return fmt.Sprintf("Path: %s | Indexing: %s", path, info.IndexingStrategy)
+}
+
+func buildStatusInfo(dirPath string) (*StatusInfo, error) {
+	absPath := filepath.Join(rootDir, dirPath)
+
+	config, err := getIndexConfig(absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	relativePath := dirPath
+	if relativePath == "" {
+		relativePath = "/"
+	}
+
+	indexingStrategy := config.Strategy.String()
+
+	return &StatusInfo{
+		AbsolutePath:     absPath,
+		IndexingStrategy: indexingStrategy,
+		RelativePath:     relativePath,
+	}, nil
+}
+
+func listEntries(statusInfo *StatusInfo) ([]string, error) {
+	fullPath := statusInfo.AbsolutePath
+	dirEntries, err := os.ReadDir(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading entries for path %s: %w", fullPath, err)
+
+	}
+
 	var entries []string
 
 	for _, entry := range dirEntries {
@@ -52,24 +72,28 @@ func sortEntries(dirEntries []os.DirEntry) []string {
 	}
 
 	sort.Strings(entries)
-	return entries
-}
-
-func listEntries(dirPath string) ([]string, error) {
-	fullPath := filepath.Join(rootDir, dirPath)
-	entries, err := os.ReadDir(fullPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Currently sorts with directory priority,
-	// eventually have this as a component of Indexing strategy
-	result := sortEntries(entries)
-	return result, nil
+	return entries, nil
 }
 
 func browse(dirPath string) error {
-	entries, err := listEntries(dirPath)
+
+	// Indexing
+	// TODO: Parse .index file and pass indexing strategy alongside dirPath
+
+	Logger.Debug("Browsing", "Current Path", dirPath)
+
+	statusInfo, err := buildStatusInfo(dirPath)
+	if err != nil {
+		return err
+	}
+
+	Logger.Debug("Built Status Info",
+		"Absolute Path", statusInfo.AbsolutePath,
+		"Indexing Strategy", statusInfo.IndexingStrategy,
+		"Relative Path", statusInfo.RelativePath,
+	)
+
+	entries, err := listEntries(statusInfo)
 	if err != nil {
 		return err
 	}
@@ -82,17 +106,19 @@ func browse(dirPath string) error {
 	if dirPath != "" {
 		menuItems = append(menuItems, "..")
 	}
-	menuItems = append(menuItems, "./")
+	menuItems = append(menuItems, "/")
 
-	choice, err := launchMenu(menuItems, "Choose note or create new: ")
+	choice, err := launchMenu(menuItems, "The Garden Log: ", statusInfo)
 	if err != nil {
 		return err
 	}
 
 	switch choice {
 	case "New":
-		return createNewNote(dirPath)
+		Logger.Debug("Starting new note creation")
+		return createNewNote(statusInfo)
 	case "..":
+		Logger.Debug("Navigating to parent folder")
 		parentFolder := filepath.Dir(strings.TrimSuffix(dirPath, "/"))
 		if parentFolder == "." {
 			parentFolder = ""
@@ -100,9 +126,11 @@ func browse(dirPath string) error {
 			parentFolder += "/"
 		}
 		return browse(parentFolder)
-	case ".":
+	case "/":
+		Logger.Debug("Launching directory session")
 		return launchDir(dirPath)
 	default:
+		Logger.Debug("Navigating to File or Directory")
 		return handleFileOrDirectory(choice, dirPath)
 	}
 }
@@ -118,30 +146,64 @@ func handleFileOrDirectory(choice, dirPath string) error {
 		return launchNote(fullFilePath)
 	}
 
-	return fmt.Errorf("unexpected choice: %s", choice)
+	return fmt.Errorf("[ERROR] unexpected choice: %s", choice)
 }
 
-func findNextIndex(targetDir string) (int, error) {
-	entries, err := os.ReadDir(targetDir)
+func launchNote(filePath string) error {
+	cmd := exec.Command("kitty", "-e", "nvim", filePath)
+
+	cmd.Dir = rootDir
+
+	cmd.Env = os.Environ()
+
+	err := cmd.Start()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return 1, nil
-		}
-		return 0, err
+		return fmt.Errorf("[ERROR] Failed to launch kitty: %w", err)
 	}
 
-	var maxIndex int
-	indexPattern := regexp.MustCompile(`^(\d+)\s`)
+	return nil
+}
 
-	for _, entry := range entries {
-		if matches := indexPattern.FindStringSubmatch(entry.Name()); matches !=
-			nil {
-			if index, err := strconv.Atoi(matches[1]); err == nil && index >
-				maxIndex {
-				maxIndex = index
-			}
-		}
+func launchDir(dirPath string) error {
+	var sessionName string
+	if dirPath == "" {
+		sessionName = "The Garden Log"
+	} else {
+		sessionName = filepath.Base(dirPath)
 	}
 
-	return maxIndex + 1, nil
+	fullPath := filepath.Join(rootDir, dirPath)
+
+	cmd := exec.Command("kitty", "-e", "tmux", "new-session", "-s", sessionName, "-c", fullPath, "nvim .")
+
+	cmd.Dir = fullPath
+
+	cmd.Env = os.Environ()
+
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("[ERROR] Failed to launch kitty: %w", err)
+	}
+
+	return nil
+}
+
+func launchMenu(items []string, prompt string, statusInfo *StatusInfo) (string, error) {
+	args := []string{"notes", "-dmenu", "-l", "10", "-i", "-p", prompt}
+
+	if statusInfo != nil {
+		statusMsg := formatStatusMessage(statusInfo)
+		args = append(args, "-mesg", statusMsg)
+	}
+
+	cmd := exec.Command("rofi-launcher", args...)
+	Logger.Debug("Launching Menu", "cmd", cmd.String())
+	cmd.Stdin = strings.NewReader(strings.Join(items, "\n"))
+
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error getting output when launching rofi: %w", err)
+	}
+
+	return strings.TrimSpace(string(output)), nil
 }

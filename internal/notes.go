@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"time"
 )
 
@@ -14,8 +12,8 @@ type Note struct {
 	Path string
 }
 
-func createNewNote(dirPath string) error {
-	name, err := launchMenu([]string{}, "Enter a name: ")
+func createNewNote(statusInfo *StatusInfo) error {
+	name, err := launchMenu([]string{}, "Enter a name: ", statusInfo)
 
 	if err != nil {
 		return err
@@ -25,18 +23,11 @@ func createNewNote(dirPath string) error {
 		name = time.Now().Format("2006-01-02")
 	}
 
-	var notePath string
-	if dirPath == "" {
-		notePath = "1 Inbox/"
-	} else {
-		notePath = dirPath
-	}
-
 	note := Note{
 		Name: name,
 	}
 
-	filePath, err := writeNote(notePath, note)
+	filePath, err := writeNote(statusInfo, note)
 	if err != nil {
 		return err
 	}
@@ -44,45 +35,14 @@ func createNewNote(dirPath string) error {
 	return launchNote(filePath)
 }
 
-func generateSemanticID(dirPath, noteName string) string {
-	// Remove rootDir prefix and clean the path
-	cleanPath := strings.TrimPrefix(dirPath, rootDir)
-	cleanPath = strings.Trim(cleanPath, "/")
+func writeNote(statusInfo *StatusInfo, note Note) (string, error) {
+	var targetDir string
 
-	// Split path and remove indexes from each segment
-	var segments []string
-	if cleanPath != "" {
-		pathParts := strings.Split(cleanPath, "/")
-		for _, part := range pathParts {
-			// Remove leading index (e.g., "5 Resources" -> "Resources")
-			cleaned := regexp.MustCompile(`^\d+\s+`).ReplaceAllString(part, "")
-			if cleaned != "" {
-				segments = append(segments, cleaned)
-			}
-		}
+	if statusInfo.RelativePath == "/" {
+		targetDir = filepath.Join(rootDir, inboxDir)
+	} else {
+		targetDir = statusInfo.AbsolutePath
 	}
-
-	// Add note name (also strip index)
-	cleanedNoteName := regexp.MustCompile(`^\d+\s+`).ReplaceAllString(noteName, "")
-	segments = append(segments, cleanedNoteName)
-
-	// Convert to lowercase, replace spaces with hyphens, join with underscores
-	var cleanedSegments []string
-	for _, segment := range segments {
-		cleaned := strings.ToLower(segment)
-		cleaned = strings.ReplaceAll(cleaned, " ", "-")
-		cleanedSegments = append(cleanedSegments, cleaned)
-	}
-
-	return strings.Join(cleanedSegments, "_")
-}
-
-func writeNote(dirPath string, note Note) (string, error) {
-	targetDir := filepath.Join(rootDir, dirPath)
-
-	// if err := os.MkdirAll(targetDir, 0755); err != nil {
-	// 	return "", err
-	// }
 
 	nextIndex, err := findNextIndex(targetDir)
 	if err != nil {
@@ -98,9 +58,6 @@ func writeNote(dirPath string, note Note) (string, error) {
 	}
 	defer file.Close()
 
-	// semanticID := generateSemanticID(dirPath, note.Name)
-
-	// frontmatter := fmt.Sprintf("---\naliases: [%s]\n---\n# %s\n\n", semanticID, note.Name)
 	frontmatter := fmt.Sprintf("# %s\n\n", note.Name)
 
 	if _, err := file.WriteString(frontmatter); err != nil {
