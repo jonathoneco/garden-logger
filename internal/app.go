@@ -1,6 +1,3 @@
-// Gonna just use one entry struct, and every layer uses the filesystem as
-// state directly, effectively we'll cd in and out of shit and re-read
-// everything, instead of modeling the whole filesystem for now.
 package internal
 
 import (
@@ -11,8 +8,21 @@ import (
 )
 
 var rootDir = os.Getenv("GARDEN_LOG_DIR")
-var inboxDir = os.Getenv("1 Inbox")
+var inboxDir = "1 Inbox"
 var Logger *slog.Logger
+
+const (
+	MenuIndexNumeric        = "   Numeric"
+	MenuIndexDatetime       = "󰃭   Datetime"
+	MenuIndexNone           = "󰟢   None"
+	MenuNew                 = "   New"
+	MenuNewNote             = "   New Note"
+	MenuNewDirectory        = "   New Directory"
+	MenuNewNoteFromTemplate = "   New Note from Template"
+	MenuBack                = "←   Back"
+	MenuSettings            = "   Settings"
+	MenuOpenCurrentFolder   = "   Open Current Folder"
+)
 
 func initLogger(verbose bool) {
 	level := slog.LevelInfo

@@ -127,6 +127,14 @@ Templates:
 - Eureka! I can use nvim and ObsidianRename for a headless rename, this is huge
 - I'm thinking in the process of moving things around there will be a lot of moving (i.e. if I'm moving one document up it'll trigger a bunch of updates for that document and the ones around it), I'll do the naive approach first but I think if this hits performance issues I'll need to swap to a model where I cache updates, execute on ui navigation, and don't perform no-ops
 
+## Docs
+- Update to rofi info
+    - Provide info about rofi-launcher script
+
+## Templates
+- Template mode for menu
+- Default title, with option to change
+
 ## Install
 
 ### Requirements
