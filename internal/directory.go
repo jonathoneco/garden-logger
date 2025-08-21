@@ -12,7 +12,7 @@ import (
 
 type DirInfo struct {
 	AbsolutePath     string
-	IndexingStrategy string
+	IndexingStrategy IndexStrategy
 	RelativePath     string
 }
 
@@ -26,11 +26,9 @@ func buildDirInfo(dirPath string) (*DirInfo, error) {
 
 	relativePath := dirPath
 
-	indexingStrategy := config.Strategy.String()
-
 	return &DirInfo{
 		AbsolutePath:     absPath,
-		IndexingStrategy: indexingStrategy,
+		IndexingStrategy: config.Strategy,
 		RelativePath:     relativePath,
 	}, nil
 }

@@ -36,9 +36,8 @@ func (ms *MenuState) getMenuItems() ([]string, error) {
 	case ModeIndexing:
 		current := ms.DirInfo.IndexingStrategy
 		return []string{
-			formatOption(MenuIndexNumeric, current == "Numeric"),
-			// formatOption(MenuIndexDatetime, current == "Datetime"),
-			formatOption(MenuIndexNone, current == "None"),
+			formatOption(MenuIndexNumeric, current == IndexStrategyNumeric),
+			formatOption(MenuIndexNone, current == IndexStrategyNone),
 			MenuBack,
 		}, nil
 	case ModeBrowse: // browse
@@ -121,7 +120,6 @@ func (ms *MenuState) handleBrowseChoice(choice string) error {
 		return fmt.Errorf("[ERROR] unexpected choice: %s", choice)
 	}
 
-	// Handle normal browse logic (files, directories, etc.)
 	return nil
 }
 
@@ -131,8 +129,6 @@ func (ms *MenuState) handleNewChoice(choice string) error {
 		ms.Mode = ModeNewNote
 	case MenuNewDirectory:
 	case MenuNewNoteFromTemplate:
-		// TODO: Update to template mode once template functionality is added
-		ms.Mode = ModeBrowse
 	case MenuBack:
 		ms.Mode = ModeBrowse
 	}
@@ -142,30 +138,32 @@ func (ms *MenuState) handleNewChoice(choice string) error {
 func (ms *MenuState) handleIndexingChoice(choice string) error {
 	switch choice {
 	case MenuIndexNumeric:
-		config := &IndexConfig{
-			Strategy: IndexStrategyNumeric,
-			NumericConfig: &NumericConfig{
-				DirPriority: true, // Default to directory priority
-			},
+		if ms.DirInfo.IndexingStrategy != IndexStrategyNumeric {
+			config := &IndexConfig{
+				Strategy: IndexStrategyNumeric,
+				NumericConfig: &NumericConfig{
+					DirPriority: true, // Default to directory priority
+				},
+			}
+			if err := writeIndexConfig(ms.DirInfo.AbsolutePath, config); err != nil {
+				return fmt.Errorf("failed to set numeric indexing: %w", err)
+			}
+			if err := applyNumericIndexing(ms.DirInfo.AbsolutePath, true); err != nil {
+				return fmt.Errorf("failed to apply numeric indexing: %w", err)
+			}
+			ms.DirInfo.IndexingStrategy = IndexStrategyNumeric
 		}
-		if err := writeIndexConfig(ms.DirInfo.AbsolutePath, config); err != nil {
-			return fmt.Errorf("failed to set numeric indexing: %w", err)
-		}
-		if err := applyNumericIndexing(ms.DirInfo.AbsolutePath, true); err != nil {
-			return fmt.Errorf("failed to apply numeric indexing: %w", err)
-		}
-		ms.DirInfo.IndexingStrategy = "Numeric"
-	// case MenuIndexDatetime:
 	case MenuIndexNone:
-		if err := removeIndexing(ms.DirInfo.AbsolutePath); err != nil {
-			return fmt.Errorf("failed to remove indexing: %w", err)
+		if ms.DirInfo.IndexingStrategy != IndexStrategyNone {
+			if err := removeIndexing(ms.DirInfo.AbsolutePath); err != nil {
+				return fmt.Errorf("failed to remove indexing: %w", err)
+			}
+			config := &IndexConfig{Strategy: IndexStrategyNone}
+			if err := writeIndexConfig(ms.DirInfo.AbsolutePath, config); err != nil {
+				return fmt.Errorf("failed to clear indexing config: %w", err)
+			}
+			ms.DirInfo.IndexingStrategy = IndexStrategyNone
 		}
-		config := &IndexConfig{Strategy: IndexStrategyNone}
-		if err := writeIndexConfig(ms.DirInfo.AbsolutePath, config); err != nil {
-			return fmt.Errorf("failed to clear indexing config: %w", err)
-		}
-		ms.DirInfo.IndexingStrategy = "None"
-	case MenuBack:
 	}
 	ms.Mode = ModeBrowse
 	return nil
