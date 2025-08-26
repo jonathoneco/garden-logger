@@ -104,6 +104,23 @@ Templates:
 
 - Add logging
 
+## Data Modeling
+I'm modeling entries more explicitly and separately from current directory state as it makes data operations easier, but the thing I suspect I'll run into is that getting the choice as an entry is going to be a bit of a pain. For now I'll just do so explicitly but if there were a way to get the menu / rofi return to directly associate entries that'd be ideal
+
+The naive approach is just parsing the choice filename and looking for a matching entry in the directory (maybe I don't even need to find the original, I can just create a new one at the point of need?)
+
+I'm running up against the limitations of using rofi as the UI, ideally I can just get richer behavior with object linking but if not I might have to switch to a native ui solution
+
+I'd really rather not though because rofi gives me good fzf behavior out of the box and is stylized with the rest of my system
+Is there a way to get rofi to pass around objects and let me handle selection?
+
+## Indexing
+- I should swap out the way I look for an index
+- All the indexing tools should interact with is a list of indices
+    - Functions to get the indices in a directory
+    - I'll need a way to reverse look up the document so I'll need some sort of ''
+
+
 ## Configuration
 - note root folder
 - default indexing option,can also set per-directory index strategy with a .indexing file dictating the strategy

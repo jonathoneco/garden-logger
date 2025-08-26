@@ -3,11 +3,11 @@ package main
 import (
 	"os"
 
-	"garden-logger/internal"
+	"garden-logger/internal/app"
 )
 
 func main() {
-	if err := internal.StartApp(); err != nil {
+	if err := app.StartApp(); err != nil {
 		os.Exit(1)
 	}
 }

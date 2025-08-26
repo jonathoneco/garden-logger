@@ -1,4 +1,4 @@
-package internal
+package indexing
 
 import (
 	"encoding/json"
@@ -11,32 +11,32 @@ import (
 	"strings"
 )
 
-type IndexStrategy int
+type Strategy int
 
 const (
-	IndexStrategyNone IndexStrategy = iota
-	IndexStrategyNumeric
+	StrategyNone Strategy = iota
+	StrategyNumeric
 )
 
-func (is IndexStrategy) String() string {
+func (is Strategy) String() string {
 	switch is {
-	case IndexStrategyNumeric:
+	case StrategyNumeric:
 		return "Numeric"
-	case IndexStrategyNone:
+	case StrategyNone:
 		return "None"
 	default:
 		return "None"
 	}
 }
 
-func ParseIndexStrategy(s string) IndexStrategy {
+func ParseIndexStrategy(s string) Strategy {
 	switch s {
 	case "Numeric":
-		return IndexStrategyNumeric
+		return StrategyNumeric
 	case "None":
-		return IndexStrategyNone
+		return StrategyNone
 	default:
-		return IndexStrategyNone
+		return StrategyNone
 	}
 }
 
@@ -45,7 +45,7 @@ type NumericConfig struct {
 }
 
 type IndexConfig struct {
-	Strategy      IndexStrategy  `json:"strategy"`
+	Strategy      Strategy       `json:"strategy"`
 	NumericConfig *NumericConfig `json:"numeric_config,omitempty"`
 }
 
@@ -72,11 +72,11 @@ func (ic *IndexConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func getIndexConfig(dirPath string) (*IndexConfig, error) {
+func GetIndexConfig(dirPath string) (*IndexConfig, error) {
 	indexFilePath := filepath.Join(dirPath, ".index")
 
 	if _, err := os.Stat(indexFilePath); os.IsNotExist(err) {
-		return &IndexConfig{Strategy: IndexStrategyNone}, nil
+		return &IndexConfig{Strategy: StrategyNone}, nil
 	}
 
 	data, err := os.ReadFile(indexFilePath)
@@ -92,10 +92,10 @@ func getIndexConfig(dirPath string) (*IndexConfig, error) {
 	return &config, nil
 }
 
-func writeIndexConfig(dirPath string, config *IndexConfig) error {
+func WriteIndexConfig(dirPath string, config *IndexConfig) error {
 	indexFilePath := filepath.Join(dirPath, ".index")
 
-	if config.Strategy == IndexStrategyNone {
+	if config.Strategy == StrategyNone {
 		if _, err := os.Stat(indexFilePath); !os.IsNotExist(err) {
 			return os.Remove(indexFilePath)
 		}
@@ -118,7 +118,7 @@ type IndexedEntry struct {
 }
 
 func parseIndexedName(name string) (int, string, bool) {
-	re := regexp.MustCompile(`^(\d+)\s*-\s*(.+)$`)
+	re := regexp.MustCompile(`^(\d{2})\.\s*(.+)$`)
 	matches := re.FindStringSubmatch(name)
 	if len(matches) == 3 {
 		if index, err := strconv.Atoi(matches[1]); err == nil {
@@ -128,13 +128,13 @@ func parseIndexedName(name string) (int, string, bool) {
 	return 0, name, false
 }
 
-func findNextIndex(dirPath string) (int, error) {
-	config, err := getIndexConfig(dirPath)
+func FindNextIndex(dirPath string) (int, error) {
+	config, err := GetIndexConfig(dirPath)
 	if err != nil {
 		return 1, err
 	}
 
-	if config.Strategy == IndexStrategyNone {
+	if config.Strategy == StrategyNone {
 		return 1, nil
 	}
 
@@ -203,7 +203,7 @@ func getIndexedEntries(dirPath string) ([]IndexedEntry, error) {
 	return indexedEntries, nil
 }
 
-func applyNumericIndexing(dirPath string, dirPriority bool) error {
+func ApplyNumericIndexing(dirPath string, dirPriority bool) error {
 	entries, err := getIndexedEntries(dirPath)
 	if err != nil {
 		return err
@@ -228,9 +228,9 @@ func applyNumericIndexing(dirPath string, dirPriority bool) error {
 
 		var newName string
 		if entry.IsDir {
-			newName = fmt.Sprintf("%d - %s", newIndex, entry.Name)
+			newName = fmt.Sprintf("%02d. %s", newIndex, entry.Name)
 		} else {
-			newName = fmt.Sprintf("%d - %s", newIndex, entry.Name)
+			newName = fmt.Sprintf("%02d. %s", newIndex, entry.Name)
 		}
 
 		if newName != entry.FullName {
@@ -244,7 +244,7 @@ func applyNumericIndexing(dirPath string, dirPriority bool) error {
 	return nil
 }
 
-func removeIndexing(dirPath string) error {
+func RemoveIndexing(dirPath string) error {
 	entries, err := getIndexedEntries(dirPath)
 	if err != nil {
 		return err
@@ -271,6 +271,12 @@ type ValidationResult struct {
 	Unindexed   []string
 }
 
+type DirInfo struct {
+	AbsolutePath     string
+	IndexingStrategy Strategy
+	RelativePath     string
+}
+
 func ValidResult() *ValidationResult {
 	return &ValidationResult{
 		IsValid:     true,
@@ -281,8 +287,8 @@ func ValidResult() *ValidationResult {
 	}
 }
 
-func (dirInfo *DirInfo) validateIndexing() (*ValidationResult, error) {
-	if dirInfo.IndexingStrategy == IndexStrategyNumeric {
+func ValidateIndexing(dirInfo *DirInfo) (*ValidationResult, error) {
+	if dirInfo.IndexingStrategy == StrategyNumeric {
 		return validateNumericIndexing(dirInfo.AbsolutePath)
 	}
 	result := ValidResult()
@@ -290,13 +296,13 @@ func (dirInfo *DirInfo) validateIndexing() (*ValidationResult, error) {
 }
 
 func validateNumericIndexing(dirPath string) (*ValidationResult, error) {
-	config, err := getIndexConfig(dirPath)
+	config, err := GetIndexConfig(dirPath)
 	if err != nil {
 		return nil, err
 	}
 
 	result := ValidResult()
-	if config.Strategy != IndexStrategyNumeric {
+	if config.Strategy != StrategyNumeric {
 		result.Issues = append(result.Issues, "Directory is not using numeric indexing")
 		result.IsValid = false
 		return result, nil
@@ -352,12 +358,12 @@ func validateNumericIndexing(dirPath string) (*ValidationResult, error) {
 }
 
 func repairNumericIndexing(dirPath string) error {
-	config, err := getIndexConfig(dirPath)
+	config, err := GetIndexConfig(dirPath)
 	if err != nil {
 		return err
 	}
 
-	if config.Strategy != IndexStrategyNumeric {
+	if config.Strategy != StrategyNumeric {
 		return fmt.Errorf("directory is not using numeric indexing")
 	}
 
@@ -366,16 +372,16 @@ func repairNumericIndexing(dirPath string) error {
 		dirPriority = config.NumericConfig.DirPriority
 	}
 
-	return applyNumericIndexing(dirPath, dirPriority)
+	return ApplyNumericIndexing(dirPath, dirPriority)
 }
 
 func moveIndexedFile(dirPath, fileName string, newIndex int) error {
-	config, err := getIndexConfig(dirPath)
+	config, err := GetIndexConfig(dirPath)
 	if err != nil {
 		return err
 	}
 
-	if config.Strategy != IndexStrategyNumeric {
+	if config.Strategy != StrategyNumeric {
 		return fmt.Errorf("directory is not using numeric indexing")
 	}
 
@@ -458,9 +464,9 @@ func shiftIndicesForMove(dirPath string, fromIndex, toIndex int) error {
 				newIndex := entry.Index - 1
 				var newName string
 				if entry.IsDir {
-					newName = fmt.Sprintf("%d - %s", newIndex, entry.Name)
+					newName = fmt.Sprintf("%02d. %s", newIndex, entry.Name)
 				} else {
-					newName = fmt.Sprintf("%d - %s", newIndex, entry.Name)
+					newName = fmt.Sprintf("%02d. %s", newIndex, entry.Name)
 				}
 
 				updates = append(updates, struct {
@@ -478,9 +484,9 @@ func shiftIndicesForMove(dirPath string, fromIndex, toIndex int) error {
 				newIndex := entry.Index + 1
 				var newName string
 				if entry.IsDir {
-					newName = fmt.Sprintf("%d - %s", newIndex, entry.Name)
+					newName = fmt.Sprintf("%02d. %s", newIndex, entry.Name)
 				} else {
-					newName = fmt.Sprintf("%d - %s", newIndex, entry.Name)
+					newName = fmt.Sprintf("%02d. %s", newIndex, entry.Name)
 				}
 
 				updates = append(updates, struct {
@@ -503,7 +509,7 @@ func shiftIndicesForMove(dirPath string, fromIndex, toIndex int) error {
 	return nil
 }
 
-func moveIndexedFileUp(dirPath, fileName string) error {
+func MoveIndexedFileUp(dirPath, fileName string) error {
 	entries, err := getIndexedEntries(dirPath)
 	if err != nil {
 		return err
@@ -528,7 +534,7 @@ func moveIndexedFileUp(dirPath, fileName string) error {
 	return moveIndexedFile(dirPath, fileName, targetEntry.Index-1)
 }
 
-func moveIndexedFileDown(dirPath, fileName string) error {
+func MoveIndexedFileDown(dirPath, fileName string) error {
 	entries, err := getIndexedEntries(dirPath)
 	if err != nil {
 		return err
@@ -555,4 +561,3 @@ func moveIndexedFileDown(dirPath, fileName string) error {
 
 	return moveIndexedFile(dirPath, fileName, targetEntry.Index+1)
 }
-
