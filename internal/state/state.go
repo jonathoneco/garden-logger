@@ -1,14 +1,14 @@
 package state
 
 import (
-	"fmt"
-	"garden-logger/internal/indexing"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
+
+var Log *slog.Logger
 
 // Types
 
@@ -27,10 +27,10 @@ type Entry struct {
 }
 
 type DirState struct {
-	DirPath  string
-	AbsPath  string
-	Strategy *indexing.IndexConfig
-	Entries  []*Entry
+	DirPath string
+	AbsPath string
+	// Strategy *indexing.IndexConfig
+	Entries []*Entry
 }
 
 type Mode int
@@ -52,21 +52,25 @@ type MenuState struct {
 func LoadDirState(dirPath string) (*DirState, error) {
 	absPath := filepath.Join(RootDir, dirPath)
 
-	config, err := indexing.GetIndexConfig(absPath)
-	if err != nil {
-		return nil, err
-	}
+	// config, err := indexing.GetIndexConfig(absPath)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	Log.Debug("Test")
 
 	entries, err := ListEntries(dirPath)
 	if err != nil {
 		return nil, err
 	}
 
+	Log.Debug("Loaded Directory", "dirPath", dirPath)
+
 	return &DirState{
-		DirPath:  dirPath,
-		AbsPath:  absPath,
-		Strategy: config,
-		Entries:  entries,
+		DirPath: dirPath,
+		AbsPath: absPath,
+		// Strategy: config,
+		Entries: entries,
 	}, err
 }
 
@@ -80,18 +84,12 @@ func ListEntries(dirPath string) ([]*Entry, error) {
 
 	var entries []*Entry
 
-	for _, entry := range dirEntries {
-		name := entry.Name()
-
-		if strings.HasPrefix(name, ".") {
+	for _, dirEntry := range dirEntries {
+		if strings.HasPrefix(dirEntry.Name(), ".") {
 			continue
 		}
 
-		entry, err := LoadEntry(name, entry.IsDir())
-
-		if err != nil {
-			return entries, err
-		}
+		entry := LoadEntry(dirEntry)
 
 		entries = append(entries, entry)
 	}
@@ -99,17 +97,29 @@ func ListEntries(dirPath string) ([]*Entry, error) {
 	return entries, nil
 }
 
-// func LoadEntry(name string, isDir bool) (*Entry, error) {
-func LoadEntry(name string, isDir bool) {
-	entry := &Entry{}
-
-	re := regexp.MustCompile(`^(\d{2})\.\s*(.+)$`)
-	matches := re.FindStringSubmatch(name)
-	if len(matches) == 3 {
-		return &Entry{matches[1], matches[2], true}
-
+func LoadEntry(dirEntry os.DirEntry) *Entry {
+	index, name := parseEntryName(dirEntry.Name())
+	isDir := dirEntry.IsDir()
+	ext := "/"
+	if !isDir {
+		ext = filepath.Ext(dirEntry.Name())
 	}
-	return 0, name, false
 
-	return &Entry{}, nil
+	entry := &Entry{index, name, ext, isDir}
+	Log.Debug("Loaded Entry", "entry", entry)
+	return entry
+}
+
+// Parses entry name and returns Index, CleanedName
+func parseEntryName(name string) (string, string) {
+	// This seems like a poor use of branching, is there a better way to handle the optional file extension with regex
+	// re := regexp.MustCompile(`^(\d{2})\.\s*(.+)\.(.+)$|^(\d{2})\.\s*(.+)$`)
+	re := regexp.MustCompile(`^(\d{2})\.\s*(.+)(\.?)(.*)$`)
+	matches := re.FindStringSubmatch(name)
+	Log.Debug("Regex Matches", "matches", matches, "len", len(matches))
+	if len(matches) > 0 {
+		return matches[1], matches[2]
+	}
+
+	return "", name
 }

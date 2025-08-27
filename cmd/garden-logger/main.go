@@ -1,9 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"garden-logger/internal/app"
+	"os"
 )
 
 func main() {

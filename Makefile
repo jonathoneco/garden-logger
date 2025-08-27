@@ -38,6 +38,10 @@ uninstall:
 run: build
 	./$(BINARY_NAME)
 
+.PHONY: debug
+debug: build
+	./$(BINARY_NAME) -v
+
 # Test the build
 .PHONY: test
 test:

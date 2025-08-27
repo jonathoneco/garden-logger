@@ -3,7 +3,6 @@ package app
 import (
 	"flag"
 	"fmt"
-	"garden-logger/internal/menu"
 	"garden-logger/internal/state"
 	"log/slog"
 )
@@ -26,9 +25,13 @@ func StartApp() error {
 
 	log.Debug("Garden Logger Started", "rootDir", state.RootDir)
 
-	err := menu.Browse()
-	if err != nil {
-		log.Error("Operational Error", "error", err)
-	}
-	return err
+	// err := menu.Browse()
+	// if err != nil {
+	// 	log.Error("Operational Error", "error", err)
+	// }
+	// return err
+	state.LoadDirState("")
+	state.LoadDirState("01. Inbox")
+
+	return nil
 }

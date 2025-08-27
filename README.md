@@ -152,6 +152,9 @@ Is there a way to get rofi to pass around objects and let me handle selection?
 - Template mode for menu
 - Default title, with option to change
 
+## Logging
+- Fix debug logging
+
 ## Install
 
 ### Requirements

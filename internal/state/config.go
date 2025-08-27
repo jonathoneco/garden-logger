@@ -28,8 +28,10 @@ func InitLogger(verbose bool) {
 		level = slog.LevelDebug
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 		Level: level,
 	}))
 	slog.SetDefault(logger)
+
+	Log = slog.Default().With("package", "state")
 }
