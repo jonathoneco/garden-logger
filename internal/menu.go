@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"log/slog"
 	"path/filepath"
 )
 
@@ -20,58 +19,59 @@ type MenuState struct {
 	Dir       *Directory
 	Mode      Mode
 	Selection string
+	config    *Config
+	notes     *NotesService
 }
 
-func (menu *MenuState) formatStatusMessage() string {
-	path := menu.Dir.Path
+func (m *MenuState) formatStatusMessage() string {
+	path := m.Dir.Path
 	return fmt.Sprintf("Path: %s \nIndexing: %s", path, "TEMP")
 }
 
 func InitMenuState() (*MenuState, error) {
-	slog.Info("Initializing menu state")
+	config, err := LoadConfig()
 
-	dir, err := LoadDirectory("")
 	if err != nil {
 		return nil, err
 	}
 
-	menuState := &MenuState{dir, ModeBrowse, ""}
-	slog.Info("Menu state initialized successfully", "initialMode", ModeBrowse, "rootEntries", len(dir.Entries))
-	return menuState, nil
+	notes := NewNotesService(config)
+	menu := &MenuState{nil, ModeBrowse, "", config, notes}
+	dir, err := notes.LoadDirectory("")
+	if err != nil {
+		return nil, err
+	}
+	menu.Dir = dir
+
+	return menu, nil
 }
 
-func (menu *MenuState) navigateTo(dirPath string) error {
-	slog.Info("Navigating to directory", "fromPath", menu.Dir.Path, "toPath", dirPath)
-
-	dir, err := LoadDirectory(dirPath)
+func (m *MenuState) navigateTo(dirPath string) error {
+	dir, err := m.notes.LoadDirectory(dirPath)
 	if err != nil {
 		return err
 	}
-
-	menu.Dir = dir
-	menu.Selection = ""
-	slog.Info("Navigation completed successfully", "newPath", dirPath, "entryCount", len(dir.Entries))
+	m.Dir = dir
+	m.Selection = ""
 	return nil
 }
 
-func (menu *MenuState) navigateToParent() error {
-	slog.Debug("Attempting to navigate to parent directory", "currentPath", menu.Dir.Path)
+func (m *MenuState) navigateToParent() error {
 
-	if menu.Dir.Path == "" {
+	if m.Dir.Path == "" {
 		return fmt.Errorf("already at root directory")
 	}
 
-	parentPath := filepath.Dir(menu.Dir.Path)
+	parentPath := filepath.Dir(m.Dir.Path)
 	if parentPath == "." {
 		parentPath = ""
 	}
-	slog.Debug("Parent path resolved", "parentPath", parentPath)
 
-	return menu.navigateTo(parentPath)
+	return m.navigateTo(parentPath)
 }
 
-func (menu *MenuState) getPrompt() string {
-	switch menu.Mode {
+func (m *MenuState) getPrompt() string {
+	switch m.Mode {
 	case ModeNew:
 		return "New: "
 	case ModeNewNote:
@@ -83,30 +83,30 @@ func (menu *MenuState) getPrompt() string {
 	}
 }
 
-func (menu *MenuState) handleChoice(choice string) error {
+func (m *MenuState) handleChoice(choice string) error {
 	var err error = nil
-	switch menu.Mode {
+	switch m.Mode {
 	case ModeBrowse:
-		err = menu.handleBrowseChoice(choice)
+		err = m.handleBrowseChoice(choice)
 	case ModeNew:
-		err = menu.handleNewChoice(choice)
-	// case ModeSettings:
-	// 	err = menu.handleSettingsChoice(choice)
+		err = m.handleNewChoice(choice)
+	case ModeSettings:
+		err = m.handleSettingsChoice(choice)
 	case ModeNewNote:
-		err = menu.handleNewNoteChoice(choice)
+		err = m.handleNewNoteChoice(choice)
 	}
 
 	return err
 }
 
-func (menu *MenuState) getMenuItems() ([]string, error) {
-	switch menu.Mode {
+func (m *MenuState) getMenuItems() ([]string, error) {
+	switch m.Mode {
 	case ModeNew:
 		return getNewMenuItems()
 	case ModeSettings:
-		return menu.getSettingsMenuItems()
+		return m.getSettingsMenuItems()
 	case ModeBrowse: // browse
-		return menu.getBrowseMenuItems()
+		return m.getBrowseMenuItems()
 	default:
 		return nil, nil
 	}
@@ -119,10 +119,8 @@ func Browse() error {
 	}
 
 	for {
-		slog.Debug("Browsing", "Current Path", menu.Dir.Path, "Mode", menu.Mode)
 
 		choice, err := menu.launchMenu()
-		slog.Debug("Selection", "Choice", choice)
 		if err != nil {
 			return err
 		}

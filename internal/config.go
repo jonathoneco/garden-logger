@@ -1,12 +1,26 @@
 package internal
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 )
 
-var RootDir = os.Getenv("GARDEN_LOG_DIR")
-var InboxDir = "01. Inbox"
+type Config struct {
+	RootDir  string
+	InboxDir string
+}
+
+func LoadConfig() (*Config, error) {
+	rootDir := os.Getenv("GARDEN_LOG_DIR")
+	if rootDir == "" {
+		return nil, fmt.Errorf("GARDEN_LOG_DIR environment variable is not set")
+	}
+	return &Config{
+		RootDir:  rootDir,
+		InboxDir: "01. Inbox",
+	}, nil
+}
 
 const (
 	MenuIndexSetting        = "   Numeric Indexing"

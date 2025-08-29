@@ -18,91 +18,70 @@ Inspired by https://github.com/BreadOnPenguins/scripts/blob/master/dmenu_notes
 I originally modified it a bit to work with my personal system and subdirectories, and eventually just wanted a lot more functionality than it made sense to implement in bash scripts
 
 ## Spec / Features
-This is the intended feature spec for this tool
+### Configuration
+- Root Directory: Directory where my notes are stored
+- Inbox Directory: Where to put "quick notes"
+- Template Directory: Template Directory
 
-### Note Creation / Management
 
-Minimal ui, inspired by dmenu
-By default starts with root in my notes directory
-Should be able to Ctrl-C or Escape at any step with no effect
+### Note Management
+- Directory Navigation within my root Notes Directory
+- Create a Directory, Note, or Note from a Template
+- Open a selected note in Neovm
+- Open a selected directory in a tmux session
+- Unnamed notes are titled with the current date (for more easily logging things like daily logs or saxophone practice)
 
-Entries:
-- A "New" entry at the top
-- A "New from Template" entry
-- Each item in the current directory
-- A `..` entry at the bottom
+### Indexing
+- Setting toggle for wheter or not to index the current directory
+- Support for reordering indexed entries
+- Dir-priority indexing, directories are sorted to the top
 
-Selection:
-- New: Swaps to ui for creating a new note or directory (determined by whether the entry ends in a /)
-- New From Template: Show's available templates, upon selection of one goes to the New Entry UI (with some flavor text about the template being created)
-- A note: Opens the note in neovim in a new terminal instance, with my notes directory as the root
-- A directory: Navigates to that directory in the UI
-- `..`: Navigates to the parent directory in the UI
+## Dependencies
+This is intended to be integrated to my personal work machine, I wanted a quick and dirty tool to make my life easier so I rely heavily on some other quality of life tools specific to my environment. For more information about how I've configured these, take a look at my dotfiles repo
+- Obsidian
+    - This isn't strictly necessary for this app but it's what I use to interact with my synced notes outside of my workstation
+- Neovim
+    - I use this for text editing at my workstation, gives me:
+        - syntax highlighting
+        - buffer and directory scoped fuzzy finding
+        - obsidian tooling integration with obsidian.nvim
+- Tmux
+    - I use this for launching directory specific sessions if I want to do more than just take notes on a particular subject
+- Rofi
+    - Provides a simple, extensible UI
+    - I use different config files for different rofi use-cases so I have a 'rofi-launcher' script in my dotfiles, that's what this project actually calls when launching rofi
+    - Part of my notes rofi configs includes custom keybinds for ctrl-j / ctrl-k for entry navigation and ctrl-alt-j / ctrl-alt-k for indexed entry re-ordering
 
-Indexing:
-- Everything inside a directory is 1-indexed
-- Auto indexes when creating a note or directory
-- Directories and files share indexes, i.e. if a directory contains a directory and a file, it would look like
-1 Example Directory
-├── 1 Example Subdirectory
-└── 2 Example Note.md
+## Follow Ups
 
-Field:
-- FZF for the entries in the directory
+- Improved Renaming
+    - Currently, if I change a directories indexing setting, or reorder indexed files, it breaks links to those files
+    - I can launch a headless neovim instance and use `:ObsidianRename` to rename files while preserving links to them
+    - I don't use links very often at the moment so this isn't a super high priority
+- Improved Index Validation / Repair
+    - Right now if index validation fails it just errors
+    - I want to add some sort of indexing repair funcionality so I can delete files without too much concern
+- Deletion
+    - Maybe support deletion
+    - This is meant to be a quick-touch tool so I don't want to accidentally delete files or directories while moving around
+    - Some sort of "type the note or directories name to confirm deletion" interface
+- Templates
+    - I still need to add the template functionality
+    - Support for frontmatter with configurable / auto-populated fields
+    - Might be nice to have template defaults for some directories
+- Sync Surface
+    - Haven't yet decided how I'm actually syncing my notes across surfaces, I want something responsive that handles offline edits well
+- Across Layer Note Movement
+    - Seems like a weird edge case, but might be a nice to have
+- Dependencies
+    - If this gets any attention at all for some reason, I may try to abstract the dependencies a little better so it works for other people, with some sort of config file, but not a priority for me at all right now
 
-"New Entry" UI:
-- If entering clean note / directory name, the entry get's auto-populated to the bottom
-- If an index is provided, the entry gets inserted and shuffles everything else down
-- If after selecting a template, can only enter a filename for the note, not a directory
 
-Updates:
-- Support for reordering with automatic index updates
-- Moving/Renaming a note updates it's header and any links to it
-- Moving/Renaming a folder updates the semantic id's of all it's subnotes and any links to those semantic ids
-
-Templates:
-- Support for some auto-populated properties i.e. created-date, grow with need
-
-### Questions
-- Integration
-    - Obsidian
-        - I'm only really doing the header thing because I thought I'd need to handle link update propogation manually outside of obsidian
-        - If I can make use of obsidian's linking and update propagation I don't need them on every note and can just add properties in templates where relevant, i.e. created time for saxophone practice logs
-    - Git
-        - For now using git to save my notes remotely, want to figure out a better solution to track across my machines and my phone
-- There are some cases where this indexing doesn't make sense, i.e. for saxophone practice I want my more recent sessions up top so I'd want to index by date-time, I should have some sort of way to enable this
-- Looks like I'll need some sort of config to declare
-    - where my root notes are
-    - directories where I don't want auto indexing (maybe I actually use some sort of hidden file for this? like a .noindex that way it persists across moves)
-    - preferred editor
-- Not sure how to handle moving files / directories across layers, some weird edge cases:
-    - moving file/directory from unindexed directory to an indexed one, and vice versa
-    - moving file/directory in between indexed directories, if there's overlap new file take's priority, if not (old index larger than max index) it gets added to the bottom
-    - moving file/directory in between unindexed directories
-- Concurrency
-    - Should I create some sort of lock, not sure if I need to worry about concurrency
-    - Only case I really think this applies is if I try to manipulate notes open in some instance of neovim, not sure what to do about this yet
-- File watching
-    - The tool should not be constantly running, it should respond to the state of my notes on start
-- Error Recovery
-    - Mostly worried about corrupt indexing
-- Other filetypes
-    - I'll want to support things like images and other stuff I do in my notes, not sure what the best way to do that with all this indexing is. Maybe just don't index those?
-
-# Follow Ups
+# Immediate TODOs
 - Fix directory creation
-- Add support for `.` to open the folder in it's own tmux session
-- Turn off obsidian.nvim frontmatter
-- Add support for vim marks
-- Add support for global search
-    - fzf file path
-- Recent Notes support
-
-- Is it worth using linked lists for the indexed directories?
-
-- Folder priority as bool in indexing strategy
-
-- Add logging
+- Template Functionality
+- Some QOL logging
+- Update docs below this point
 
 ## Rofi
 I'm running into some drawbacks with rofi that are starting to get cumbersome
@@ -154,23 +133,7 @@ Is there a way to get rofi to pass around objects and let me handle selection?
 - Eureka! I can use nvim and ObsidianRename for a headless rename, this is huge
 - I'm thinking in the process of moving things around there will be a lot of moving (i.e. if I'm moving one document up it'll trigger a bunch of updates for that document and the ones around it), I'll do the naive approach first but I think if this hits performance issues I'll need to swap to a model where I cache updates, execute on ui navigation, and don't perform no-ops
 
-## Docs
-- Update to rofi info
-    - Provide info about rofi-launcher script
 
-## Templates
-- Template mode for menu
-- Default title, with option to change
-
-## Logging
-- Fix debug logging
-
-## TODO
-- Almost done with my working version
-- Fix indexing toggle
-- Cleanup readme
-
-## Install
 
 ### Requirements
 

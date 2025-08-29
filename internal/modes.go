@@ -4,39 +4,38 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // Browse Mode
 
-func (menu *MenuState) getBrowseMenuItems() ([]string, error) {
+func (m *MenuState) getBrowseMenuItems() ([]string, error) {
 	items := []string{MenuNew, MenuSettings}
 
-	items = append(items, menu.Dir.ListEntries()...)
-	if menu.Dir.Path != "" {
+	items = append(items, m.Dir.ListEntries()...)
+	if m.Dir.Path != "" {
 		items = append(items, MenuBack)
 	}
 	items = append(items, MenuOpenCurrentFolder)
 	return items, nil
 }
 
-func (menu *MenuState) handleBrowseChoice(choice string) error {
+func (m *MenuState) handleBrowseChoice(choice string) error {
 	switch choice {
 	case MenuNew:
-		menu.Mode = ModeNew
+		m.Mode = ModeNew
 	case MenuSettings:
-		menu.Mode = ModeSettings
+		m.Mode = ModeSettings
 	case MenuBack:
-		err := menu.navigateToParent()
+		err := m.navigateToParent()
 		if err != nil {
 			return err
 		}
 	case MenuOpenCurrentFolder:
-		return launchDir(menu.Dir.Path)
+		return m.notes.LaunchDirectoryEditor(m.Dir.Path)
 	default:
 		if strings.HasSuffix(choice, "/") {
-			newDirPath := filepath.Join(menu.Dir.Path, choice)
-			err := menu.navigateTo(newDirPath)
+			newDirPath := filepath.Join(m.Dir.Path, choice)
+			err := m.navigateTo(newDirPath)
 			if err != nil {
 				return err
 			}
@@ -44,11 +43,11 @@ func (menu *MenuState) handleBrowseChoice(choice string) error {
 		}
 
 		if strings.HasSuffix(strings.ToLower(choice), ".md") {
-			fullFilePath := filepath.Join(menu.Dir.Path, choice)
-			return launchNote(fullFilePath)
+			fullFilePath := filepath.Join(m.Dir.Path, choice)
+			return m.notes.LaunchNoteEditor(fullFilePath)
 		}
 
-		return fmt.Errorf("[ERROR] unexpected choice: %s", choice)
+		return fmt.Errorf("unexpected menu choice %q in %s mode", choice, m.Mode)
 	}
 
 	return nil
@@ -60,14 +59,14 @@ func getNewMenuItems() ([]string, error) {
 	return []string{MenuNewNote, MenuNewDirectory, MenuNewNoteFromTemplate, MenuBack}, nil
 }
 
-func (menu *MenuState) handleNewChoice(choice string) error {
+func (m *MenuState) handleNewChoice(choice string) error {
 	switch choice {
 	case MenuNewNote:
-		menu.Mode = ModeNewNote
+		m.Mode = ModeNewNote
 	case MenuNewDirectory:
 	case MenuNewNoteFromTemplate:
 	case MenuBack:
-		menu.Mode = ModeBrowse
+		m.Mode = ModeBrowse
 	}
 	return nil
 }
@@ -78,25 +77,13 @@ func getNewNoteMenuItems() ([]string, error) {
 	return nil, nil
 }
 
-func (menu *MenuState) handleNewNoteChoice(choice string) error {
-	name := choice
-	if name == "" {
-		name = time.Now().Format("2006-01-02")
-	}
-
-	entry := &Entry{
-		Name:      name,
-		NoteIndex: menu.Dir.NewFileIndex(),
-		Ext:       ".md",
-		IsDir:     false,
-	}
-
-	filePath, err := menu.writeNote(entry)
+func (m *MenuState) handleNewNoteChoice(choice string) error {
+	filePath, err := m.notes.CreateNoteFromUserInput(m.Dir, choice)
 	if err != nil {
 		return err
 	}
 
-	return launchNote(filePath)
+	return m.notes.LaunchNoteEditor(filePath)
 }
 
 // Settings Mode
@@ -108,24 +95,30 @@ func formatSelectedOption(text string, selected bool) string {
 	return text
 }
 
-func (menu *MenuState) getSettingsMenuItems() ([]string, error) {
+func (m *MenuState) getSettingsMenuItems() ([]string, error) {
 	menuItems := []string{
-		formatSelectedOption(MenuIndexSetting, menu.Dir.IsIndexed),
+		formatSelectedOption(MenuIndexSetting, m.Dir.IsIndexed),
 		MenuBack,
 	}
 
 	return menuItems, nil
 }
 
-func (menu *MenuState) handleSettingsChoice(choice string) error {
+func (m *MenuState) handleSettingsChoice(choice string) error {
 
 	switch choice {
 	case MenuIndexSetting:
-		menu.Dir.ApplyNumericIndexing()
+		m.Dir.ApplyNumericIndexing()
 	case formatSelectedOption(MenuIndexSetting, true):
-		menu.Dir.RemoveIndexing()
+		m.Dir.RemoveIndexing()
 	}
 
-	menu.Mode = ModeBrowse
+	dir, err := m.notes.LoadDirectory(m.Dir.Path)
+	if err != nil {
+		return err
+	}
+	m.Dir = dir
+
+	m.Mode = ModeBrowse
 	return nil
 }
