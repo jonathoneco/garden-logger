@@ -17,8 +17,9 @@ const (
 )
 
 type MenuState struct {
-	Dir  *Directory
-	Mode Mode
+	Dir       *Directory
+	Mode      Mode
+	Selection string
 }
 
 func (menu *MenuState) formatStatusMessage() string {
@@ -34,7 +35,7 @@ func InitMenuState() (*MenuState, error) {
 		return nil, err
 	}
 
-	menuState := &MenuState{dir, ModeBrowse}
+	menuState := &MenuState{dir, ModeBrowse, ""}
 	slog.Info("Menu state initialized successfully", "initialMode", ModeBrowse, "rootEntries", len(dir.Entries))
 	return menuState, nil
 }
@@ -48,6 +49,7 @@ func (menu *MenuState) navigateTo(dirPath string) error {
 	}
 
 	menu.Dir = dir
+	menu.Selection = ""
 	slog.Info("Navigation completed successfully", "newPath", dirPath, "entryCount", len(dir.Entries))
 	return nil
 }
@@ -118,7 +120,8 @@ func Browse() error {
 
 	for {
 		slog.Debug("Browsing", "Current Path", menu.Dir.Path, "Mode", menu.Mode)
-		choice, err := menu.launchMenu("")
+
+		choice, err := menu.launchMenu()
 		slog.Debug("Selection", "Choice", choice)
 		if err != nil {
 			return err

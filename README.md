@@ -1,6 +1,8 @@
 # Garden Logger
 
-I have a personal note taking system I call my Garden Log, this tool is one I'm writing to help manage and use my note taking system. I keep my notes in raw markdown that I edit with neovim where I can, and obsidian where I can't. The reason I'm writing this tool is that I often find navigation to and interaction with my notes often randomizes me, especially with Notion which is what I am currently using. I want this tool to reduce the friction of getting to where I need to be as much as possible
+My personal notes I call my Garden Log. I was keeping my notes in notion for a while but found navigation to and interaction with my notes often randomizes me. I am swapping to keeping my notes in raw markdown that I edit with neovim where I can, and obsidian where I can't. I'm writing this tool for two reasons:
+1) I want to reduce the friction of getting to where I need to be as much as possible
+2) I'd like to learn Golang and this seems like a good first project for it.
 
 My system is based on the PARA model, currently I've got the following folder structure
 
@@ -11,8 +13,6 @@ $HOME/src/garden-log
 ├── 4 Archive
 └── 5 Resources
     └─ 1 Templates
-
-I'm also using this as an excuse to learn Go.
 
 Inspired by https://github.com/BreadOnPenguins/scripts/blob/master/dmenu_notes
 I originally modified it a bit to work with my personal system and subdirectories, and eventually just wanted a lot more functionality than it made sense to implement in bash scripts
@@ -164,6 +164,11 @@ Is there a way to get rofi to pass around objects and let me handle selection?
 
 ## Logging
 - Fix debug logging
+
+## TODO
+- Almost done with my working version
+- Fix indexing toggle
+- Cleanup readme
 
 ## Install
 

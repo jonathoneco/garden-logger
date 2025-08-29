@@ -22,7 +22,10 @@ func StartApp() error {
 		return err
 	}
 
-	Browse()
+	err := Browse()
+	if err != nil {
+		return err
+	}
 
 	slog.Info("Application startup completed successfully")
 	return nil

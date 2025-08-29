@@ -85,10 +85,10 @@ func (menu *MenuState) handleNewNoteChoice(choice string) error {
 	}
 
 	entry := &Entry{
-		Name:  name,
-		Index: menu.Dir.NewFileIndex(),
-		Ext:   ".md",
-		IsDir: false,
+		Name:      name,
+		NoteIndex: menu.Dir.NewFileIndex(),
+		Ext:       ".md",
+		IsDir:     false,
 	}
 
 	filePath, err := menu.writeNote(entry)

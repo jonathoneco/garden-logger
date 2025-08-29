@@ -87,7 +87,7 @@ func launchNote(filePath string) error {
 	return nil
 }
 
-func (menu *MenuState) launchMenu(selectedItem string) (string, error) {
+func (menu *MenuState) launchMenu() (string, error) {
 	slog.Debug("Launching menu interface", "mode", menu.Mode, "currentDir", menu.Dir.Path)
 
 	items, err := menu.getMenuItems()
@@ -97,9 +97,9 @@ func (menu *MenuState) launchMenu(selectedItem string) (string, error) {
 
 	args := []string{"notes", "-dmenu", "-l", "10", "-i", "-p", menu.getPrompt()}
 
-	if selectedItem != "" {
+	if menu.Selection != "" {
 		for i, item := range items {
-			if item == selectedItem {
+			if item == menu.Selection {
 				args = append(args, "-selected-row", strconv.Itoa(i))
 				break
 			}
@@ -119,13 +119,18 @@ func (menu *MenuState) launchMenu(selectedItem string) (string, error) {
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			selection := strings.TrimSpace(string(output))
+			entry := menu.Dir.FindEntryFromFilename(selection)
 			switch exitError.ExitCode() {
 			case 10: // kb-custom-1 (Ctrl+Alt+J) - move down
 				slog.Info("Move down keybind triggered", "exitCode", 10, "output", selection)
-				return menu.launchMenu(selection)
+				menu.Dir.MoveEntryDown(entry)
+				menu.Selection = entry.String()
+				return "", nil
 			case 11: // kb-custom-2 (Ctrl+Alt+K) - move up
 				slog.Info("Move up keybind triggered", "exitCode", 11, "output", selection)
-				return menu.launchMenu(selection)
+				menu.Dir.MoveEntryUp(entry)
+				menu.Selection = entry.String()
+				return "", nil
 			}
 		}
 		return "", fmt.Errorf("[ERROR] Error getting output when launching rofi: %w", err)
