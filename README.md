@@ -1,6 +1,6 @@
 # Garden Logger
 
-I have a personal note taking system I call my Garden Log, this tool is one I'm writing to help manage and use my note taking system. I keep my notes in raw markdown that I edit with neovim where I can, and obsidian where I can't.
+I have a personal note taking system I call my Garden Log, this tool is one I'm writing to help manage and use my note taking system. I keep my notes in raw markdown that I edit with neovim where I can, and obsidian where I can't. The reason I'm writing this tool is that I often find navigation to and interaction with my notes often randomizes me, especially with Notion which is what I am currently using. I want this tool to reduce the friction of getting to where I need to be as much as possible
 
 My system is based on the PARA model, currently I've got the following folder structure
 
@@ -104,6 +104,15 @@ Templates:
 
 - Add logging
 
+## Rofi
+I'm running into some drawbacks with rofi that are starting to get cumbersome
+For one, I am creating entity objects to make indexing, files, and dir operations simpler, but rofi slection only works with text so I have to do a lot of reverse engineering whereas being able to have selection return references entity objects directly would be ideal
+Also, I'd like some conditional rendering for things like directories vs files
+What I like is that I can use common configs for things like my color scheme and font from rofi so that this ui updates with my note changer, and largely I don't have to implement a ui from scratch I can focus on data manipulation
+Is there any happy middleground where I can get richer behavior while still getting the benefits from rofi, without having to implement my own ui from scratch
+
+
+- Create a map of string to entities, use choice as key for how to handle
 ## Data Modeling
 I'm modeling entries more explicitly and separately from current directory state as it makes data operations easier, but the thing I suspect I'll run into is that getting the choice as an entry is going to be a bit of a pain. For now I'll just do so explicitly but if there were a way to get the menu / rofi return to directly associate entries that'd be ideal
 
@@ -116,6 +125,7 @@ Is there a way to get rofi to pass around objects and let me handle selection?
 
 ## Indexing
 - I should swap out the way I look for an index
+- I've simplified indexing a lot, instead of json index configs with for one type of indexing, I just touch or delete an empty .index file to indicate whether or not to numerically index my folders
 - All the indexing tools should interact with is a list of indices
     - Functions to get the indices in a directory
     - I'll need a way to reverse look up the document so I'll need some sort of ''

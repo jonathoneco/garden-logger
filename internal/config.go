@@ -1,4 +1,4 @@
-package state
+package internal
 
 import (
 	"log/slog"
@@ -9,7 +9,7 @@ var RootDir = os.Getenv("GARDEN_LOG_DIR")
 var InboxDir = "01. Inbox"
 
 const (
-	MenuIndexNumeric        = "   Numeric"
+	MenuIndexSetting        = "   Numeric Indexing"
 	MenuIndexDatetime       = "󰃭   Datetime"
 	MenuIndexNone           = "󰟢   None"
 	MenuNew                 = "   New"
@@ -32,6 +32,4 @@ func InitLogger(verbose bool) {
 		Level: level,
 	}))
 	slog.SetDefault(logger)
-
-	Log = slog.Default().With("package", "state")
 }

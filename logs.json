@@ -1,0 +1,19 @@
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Garden Logger Started" rootDir=/home/jonco/src/garden-log
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg=Test
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Regex Matches" matches="[01. Inbox 01 Inbox ]" len=4
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Loaded Entry" entry="&{Index:01 Name:Inbox Ext:/ IsDir:true}"
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Regex Matches" matches="[02. Projects 02 Projects ]" len=4
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Loaded Entry" entry="&{Index:02 Name:Projects Ext:/ IsDir:true}"
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Regex Matches" matches="[03. Areas 03 Areas ]" len=4
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Loaded Entry" entry="&{Index:03 Name:Areas Ext:/ IsDir:true}"
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Regex Matches" matches="[04. Resources 04 Resources ]" len=4
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Loaded Entry" entry="&{Index:04 Name:Resources Ext:/ IsDir:true}"
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Regex Matches" matches="[05. Archive 05 Archive ]" len=4
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Loaded Entry" entry="&{Index:05 Name:Archive Ext:/ IsDir:true}"
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Regex Matches" matches="[Test  Test ]" len=4
+time=2025-08-27T14:38:02.889-04:00 level=DEBUG msg="Loaded Entry" entry="&{Index: Name:Test Ext:/ IsDir:true}"
+time=2025-08-27T14:38:02.890-04:00 level=DEBUG msg="Loaded Directory" dirPath=""
+time=2025-08-27T14:38:02.890-04:00 level=DEBUG msg=Test
+time=2025-08-27T14:38:02.890-04:00 level=DEBUG msg="Regex Matches" matches="[01. Inbox.md 01 Inbox md]" len=4
+time=2025-08-27T14:38:02.890-04:00 level=DEBUG msg="Loaded Entry" entry="&{Index:01 Name:Inbox Ext:.md IsDir:false}"
+time=2025-08-27T14:38:02.890-04:00 level=DEBUG msg="Loaded Directory" dirPath="01. Inbox"
