@@ -15,18 +15,16 @@ import (
 
 // Entries
 
-type Kind int
-
-const (
-	KindFile Kind = iota
-	KindDir
-)
-
 type Entry struct {
-	NoteIndex int
-	Name      string
-	Ext       string
-	IsDir     bool
+	EntryIndex int
+	Name       string
+	Ext        string
+	IsDir      bool
+	ParentPath string
+}
+
+func (e *Entry) IsAnchor() bool {
+	return e.EntryIndex == 0
 }
 
 func (d *Directory) LoadEntry(dirEntry os.DirEntry) (*Entry, error) {
@@ -41,7 +39,7 @@ func (d *Directory) LoadEntry(dirEntry os.DirEntry) (*Entry, error) {
 		ext = filepath.Ext(dirEntry.Name())
 	}
 
-	entry := &Entry{index, name, ext, isDir}
+	entry := &Entry{index, name, ext, isDir, d.AbsPath}
 	return entry, nil
 }
 
@@ -70,14 +68,33 @@ func parseEntryName(name string) (int, string, error) {
 }
 
 func (e *Entry) String() string {
-	if e.NoteIndex == -1 {
+	if e.EntryIndex == -1 {
 		return fmt.Sprintf("%s%s", e.Name, e.Ext)
 	}
-	return fmt.Sprintf("%02d. %s%s", e.NoteIndex, e.Name, e.Ext)
+	return fmt.Sprintf("%02d. %s%s", e.EntryIndex, e.Name, e.Ext)
 }
 
-func (d *Directory) FilePath(entry *Entry) string {
-	return filepath.Join(d.AbsPath, entry.String())
+func (e *Entry) FilePath() string {
+	return filepath.Join(e.ParentPath, e.String())
+}
+
+func (e *Entry) Move(newIndex int) error {
+	if e.IsAnchor() {
+		slog.Debug("Cannot move anchor entry")
+		return nil
+	}
+
+	oldPath := e.FilePath()
+	e.EntryIndex = newIndex
+	newPath := e.FilePath()
+
+	slog.Debug("Calling move entry on ", "entry", e.String(), "oldPath", oldPath, "newPath", newPath)
+	return os.Rename(oldPath, newPath)
+}
+
+func (e *Entry) Remove() error {
+	slog.Debug("Calling remove entry on ", "entry", e.String(), "path", e.ParentPath)
+	return os.Remove(e.FilePath())
 }
 
 // Directories
@@ -89,7 +106,17 @@ type Directory struct {
 	Entries   []*Entry
 }
 
+func (d *Directory) GetEntryByIndex(index int) *Entry {
+	for _, entry := range d.Entries {
+		if index == entry.EntryIndex {
+			return entry
+		}
+	}
+	return nil
+}
+
 func (d *Directory) LoadEntries() error {
+	d.Entries = nil
 
 	dirEntries, err := os.ReadDir(d.AbsPath)
 	if err != nil {
@@ -108,7 +135,7 @@ func (d *Directory) LoadEntries() error {
 		d.Entries = append(d.Entries, entry)
 	}
 
-	slices.SortStableFunc(d.Entries, func(i, j *Entry) int { return cmp.Compare(i.NoteIndex, j.NoteIndex) })
+	slices.SortStableFunc(d.Entries, func(i, j *Entry) int { return cmp.Compare(i.EntryIndex, j.EntryIndex) })
 
 	return nil
 }
@@ -124,7 +151,7 @@ func (d *Directory) ListEntries() []string {
 	return entries
 }
 
-func (d *Directory) FindEntryFromFilename(filename string) *Entry {
+func (d *Directory) GetEntryByFilename(filename string) *Entry {
 	for _, entry := range d.Entries {
 		if entry.String() == filename {
 			return entry
@@ -146,75 +173,66 @@ func LoadIsIndexed(absPath string) bool {
 	return true
 }
 
-func (d *Directory) MoveEntry(entry *Entry, newIndex int) error {
-
-	oldPath := d.FilePath(entry)
-	entry.NoteIndex = newIndex
-	newPath := d.FilePath(entry)
-
-	slog.Debug("Calling move entry on ", "entry", entry.String(), "oldPath", oldPath, "newPath", newPath)
-	return os.Rename(oldPath, newPath)
-}
-
 // | 0-index | 1-index |
 // | 0 | 1 |
 // | 1 | 2 |
 // | 2 | 3 |
 
 func (d *Directory) MoveEntryUp(entry *Entry) error {
-	if entry.IsDir && entry.NoteIndex <= 1 {
+	if entry.IsAnchor() {
+		slog.Debug("Cannot move anchor entry")
+		return nil
+	}
+	if entry.IsDir && entry.EntryIndex <= 1 {
 		slog.Debug("Cannot move directory above position 1")
 		return nil
 	}
-	if !entry.IsDir && entry.NoteIndex <= d.NewDirIndex()-1 {
+	if !entry.IsDir && entry.EntryIndex <= d.NewDirIndex()-1 {
 		slog.Debug("Cannot move entry: would conflict with directory ordering")
 		return nil
 	}
 
-	entries := d.Entries
+	swapEntry := d.GetEntryByIndex(entry.EntryIndex - 1)
 
-	index := entry.NoteIndex - 1
-	swapIndex := index - 1
-	err := d.MoveEntry(entries[swapIndex], entry.NoteIndex)
+	err := entry.Move(entry.EntryIndex - 1)
 	if err != nil {
 		return err
 	}
 
-	err = d.MoveEntry(entry, entry.NoteIndex-1)
+	err = swapEntry.Move(entry.EntryIndex)
 	if err != nil {
 		return err
 	}
-
-	entries[index], entries[swapIndex] = entries[swapIndex], entries[index]
 
 	return nil
 }
 
 func (d *Directory) MoveEntryDown(entry *Entry) error {
-	if entry.IsDir && entry.NoteIndex >= d.NewDirIndex()-1 {
+	if entry.IsAnchor() {
+		slog.Debug("Cannot move anchor entry")
+		return nil
+	}
+	if entry.IsDir && entry.EntryIndex >= d.NewDirIndex()-1 {
 		slog.Debug("Cannot move entry: would conflict with directory ordering")
 		return nil
 	}
-	if !entry.IsDir && entry.NoteIndex >= d.NewFileIndex()-1 {
-		slog.Debug("Cannot move directory above position 1")
+	if !entry.IsDir && entry.EntryIndex >= d.NewFileIndex()-1 {
+		slog.Debug("Cannot move directory below last position")
 		return nil
 	}
 
-	entries := d.Entries
+	swapEntry := d.GetEntryByIndex(entry.EntryIndex - 1)
 
-	index := entry.NoteIndex - 1
-	swapIndex := index + 1
-	err := d.MoveEntry(entries[swapIndex], entry.NoteIndex)
+	err := entry.Move(entry.EntryIndex + 1)
 	if err != nil {
 		return err
 	}
 
-	err = d.MoveEntry(entry, entry.NoteIndex+1)
+	err = swapEntry.Move(entry.EntryIndex)
 	if err != nil {
 		return err
 	}
 
-	entries[index], entries[swapIndex] = entries[swapIndex], entries[index]
 	return nil
 }
 
@@ -231,15 +249,19 @@ func (d *Directory) UpdateIsIndex(isIndexed bool) error {
 func (d *Directory) NewDirIndex() int {
 	if !d.IsIndexed {
 		return -1
-
 	}
 
 	maxDirIndex := 0
-	for index, entry := range d.Entries {
+	for _, entry := range d.Entries {
 		if !entry.IsDir {
-			break
+			continue
 		}
-		maxDirIndex = index
+		if entry.IsAnchor() {
+			continue
+		}
+		if entry.EntryIndex > maxDirIndex {
+			maxDirIndex = entry.EntryIndex
+		}
 	}
 	return maxDirIndex + 1
 }
@@ -249,18 +271,75 @@ func (d *Directory) NewFileIndex() int {
 		return -1
 	}
 
-	entries := d.Entries
-	return entries[len(entries)-1].NoteIndex + 1
+	maxFileIndex := 0
+	for _, entry := range d.Entries {
+		if entry.IsAnchor() {
+			continue
+		}
+		if entry.EntryIndex > maxFileIndex {
+			maxFileIndex = entry.EntryIndex
+		}
+	}
+	return maxFileIndex + 1
+}
+
+func (d *Directory) InsertEntry(e *Entry) error {
+	if e.EntryIndex == -1 {
+		// Non-indexed entry, just append to the list
+		d.Entries = append(d.Entries, e)
+		return nil
+	}
+
+	index := e.EntryIndex - 1
+	d.Entries = slices.Insert(d.Entries, index, e)
+	for i := index + 1; i < len(d.Entries); i++ {
+		entry := d.Entries[i]
+		if entry.IsAnchor() {
+			continue
+		}
+		err := entry.Move(entry.EntryIndex + 1)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *Directory) DeleteEntry(e *Entry) error {
+	if e.IsAnchor() {
+		slog.Debug("Cannot delete anchor entry")
+		return nil
+	}
+
+	if d.IsIndexed {
+		for i := e.EntryIndex - 1; i < len(d.Entries); i++ {
+			entry := d.Entries[i]
+			if e == entry || entry.IsAnchor() {
+				continue
+			}
+			err := entry.Move(entry.EntryIndex - 1)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	e.Remove()
+
+	return nil
 }
 
 func (d *Directory) ApplyNumericIndexing() error {
+	slog.Debug("Starting ApplyNumericIndexing", "path", d.Path, "currentEntries", len(d.Entries))
 	d.UpdateIsIndex(true)
 
-	//Move Dirs
+	// Move Dirs first
 	dirIndex := 1
 	for _, entry := range d.Entries {
-		if entry.IsDir {
-			err := d.MoveEntry(entry, dirIndex)
+		if entry.IsDir && !entry.IsAnchor() {
+			slog.Debug("Moving directory", "entry", entry.String(), "fromIndex", entry.EntryIndex, "toIndex", dirIndex)
+			err := entry.Move(dirIndex)
 			if err != nil {
 				return err
 			}
@@ -269,34 +348,48 @@ func (d *Directory) ApplyNumericIndexing() error {
 	}
 
 	// Move Files
-	fileIndex := dirIndex + 1
+	fileIndex := dirIndex
 	for _, entry := range d.Entries {
-		if !entry.IsDir {
-			err := d.MoveEntry(entry, fileIndex)
+		if !entry.IsDir && !entry.IsAnchor() {
+			slog.Debug("Moving file", "entry", entry.String(), "fromIndex", entry.EntryIndex, "toIndex", fileIndex)
+			err := entry.Move(fileIndex)
 			if err != nil {
 				return err
 			}
 			fileIndex++
 		}
 	}
+
+	slog.Debug("Completed ApplyNumericIndexing", "path", d.Path)
 	return nil
 }
 
 func (d *Directory) RemoveIndexing() error {
+	slog.Debug("Starting RemoveIndexing", "path", d.Path, "currentEntries", len(d.Entries))
 	d.UpdateIsIndex(false)
 	for _, entry := range d.Entries {
-		err := d.MoveEntry(entry, -1)
-		if err != nil {
-			return err
+		if !entry.IsAnchor() {
+			slog.Debug("Removing index from entry", "entry", entry.String(), "fromIndex", entry.EntryIndex)
+			err := entry.Move(-1)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	slog.Debug("Completed RemoveIndexing", "path", d.Path)
 	return nil
 }
 
 func (d *Directory) ValidateIndexing() error {
 	if d.IsIndexed {
 		foundFirstFile := false
-		for index, entry := range d.Entries {
+		nonAnchorIndex := 1
+		for _, entry := range d.Entries {
+			// Skip anchor entries in validation
+			if entry.IsAnchor() {
+				continue
+			}
+
 			// Errors if we run into a directory after flipping foundFirstFile at the first file
 			if !entry.IsDir && !foundFirstFile {
 				foundFirstFile = true
@@ -304,11 +397,11 @@ func (d *Directory) ValidateIndexing() error {
 				return fmt.Errorf("validation failed: found directory after file in %s", d.Path)
 			}
 
-			expectedIndex := index + 1
-			if entry.NoteIndex != expectedIndex {
+			if entry.EntryIndex != nonAnchorIndex {
 				return fmt.Errorf("index validation failed: entry %q has index %d, expected %d",
-					entry.Name, entry.NoteIndex, expectedIndex)
+					entry.Name, entry.EntryIndex, nonAnchorIndex)
 			}
+			nonAnchorIndex++
 		}
 	}
 

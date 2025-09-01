@@ -12,7 +12,7 @@ func (m *MenuState) handleFileSelection(choice string, onFileSelect func(string)
 	case MenuBack:
 		return m.nav.NavigateToParent()
 	default:
-		entry := m.nav.CurrentDirectory().FindEntryFromFilename(choice)
+		entry := m.nav.CurrentDirectory().GetEntryByFilename(choice)
 		if entry == nil {
 			return fmt.Errorf("entry not found: %q", choice)
 		}
@@ -105,7 +105,7 @@ func (m *MenuState) handleNewEntry(choice string, isDir bool) error {
 	m.Mode = ModeBrowse
 
 	if isDir {
-		return m.nav.NavigateTo(m.nav.CurrentDirectory().Path)
+		return m.nav.NavigateTo(filePath)
 	}
 
 	return m.notes.LaunchNoteEditor(filePath)

@@ -46,17 +46,19 @@ func (s *EntryService) LoadDirectory(dirPath string) (*Directory, error) {
 	return dir, nil
 }
 
-func (s *EntryService) CreateEntry(dir *Directory, entry *Entry) (string, error) {
+func (s *EntryService) CreateEntry(d *Directory, entry *Entry) (string, error) {
+	slog.Debug("Creating entry", "name", entry.Name, "index", entry.EntryIndex, "isDir", entry.IsDir, "parentPath", entry.ParentPath)
 
 	var targetDir string
 
-	if dir.Path == "" && !entry.IsDir {
+	if d.Path == "" && !entry.IsDir {
 		targetDir = filepath.Join(s.config.RootDir, s.config.InboxDir)
 	} else {
-		targetDir = dir.AbsPath
+		targetDir = d.AbsPath
 	}
 
 	fullPath := filepath.Join(targetDir, entry.String())
+	slog.Debug("Creating at path", "fullPath", fullPath, "targetDir", targetDir)
 
 	if entry.IsDir {
 		err := os.Mkdir(fullPath, 0755)
@@ -76,12 +78,17 @@ func (s *EntryService) CreateEntry(dir *Directory, entry *Entry) (string, error)
 		}
 	}
 
-	return fullPath, nil
+	if err := d.InsertEntry(entry); err != nil {
+		return "", err
+	}
+
+	return entry.FilePath(), nil
 }
 
 func (s *EntryService) LaunchNoteEditor(filePath string) error {
+	fullPath := filepath.Join(s.config.RootDir, filePath)
 
-	cmd := exec.Command("kitty", "--title", "The Garden Log", "-e", "nvim", filePath)
+	cmd := exec.Command("kitty", "--title", "The Garden Log", "-e", "nvim", fullPath)
 
 	cmd.Dir = s.config.RootDir
 	cmd.Env = os.Environ()
@@ -96,18 +103,9 @@ func (s *EntryService) LaunchNoteEditor(filePath string) error {
 
 func (s *EntryService) LaunchDirectoryEditor(dirPath string) error {
 
-	var sessionName string
-	if dirPath == "" {
-		sessionName = "The Garden Log"
-	} else {
-		sessionName = filepath.Base(dirPath)
-	}
-
 	fullPath := filepath.Join(s.config.RootDir, dirPath)
 
-	cmd := exec.Command("kitty", "-e", "tmux", "new-session", "-s", sessionName, "-c", fullPath, "nvim .")
-
-	cmd.Dir = fullPath
+	cmd := exec.Command("kitty", "-e", "tmux-sessionizer", fullPath)
 	cmd.Env = os.Environ()
 
 	err := cmd.Start()
@@ -118,7 +116,8 @@ func (s *EntryService) LaunchDirectoryEditor(dirPath string) error {
 	return LaunchSuccessError{Message: "directory editor launched successfully"}
 }
 
-func (s *EntryService) CreateEntryFromUserInput(dir *Directory, name string, isDir bool) (string, error) {
+func (s *EntryService) CreateEntryFromUserInput(d *Directory, name string, isDir bool) (string, error) {
+	slog.Debug("Creating entry from user input", "name", name, "isDir", isDir, "dirPath", d.Path)
 	if name == "" {
 		name = time.Now().Format("2006-01-02")
 	}
@@ -128,29 +127,37 @@ func (s *EntryService) CreateEntryFromUserInput(dir *Directory, name string, isD
 		ext = ".md"
 	}
 
-	entry := &Entry{
-		Name:      name,
-		NoteIndex: dir.NewFileIndex(),
-		Ext:       ext,
-		IsDir:     isDir,
+	index := d.NewFileIndex()
+	if isDir {
+		index = d.NewDirIndex()
 	}
 
-	return s.CreateEntry(dir, entry)
+	entry := &Entry{
+		Name:       name,
+		EntryIndex: index,
+		Ext:        ext,
+		IsDir:      isDir,
+		ParentPath: d.Path,
+	}
+
+	return s.CreateEntry(d, entry)
 }
 
-func (s *EntryService) CreateEntryFromTemplate(dir *Directory, name string, templatePath string) (string, error) {
+func (s *EntryService) CreateEntryFromTemplate(d *Directory, name string, templatePath string) (string, error) {
+	slog.Debug("Creating entry from template", "name", name, "templatePath", templatePath, "dirPath", d.Path)
 	if name == "" {
 		name = time.Now().Format("2006-01-02")
 	}
 
 	entry := &Entry{
-		Name:      name,
-		NoteIndex: dir.NewFileIndex(),
-		Ext:       ".md",
-		IsDir:     false,
+		Name:       name,
+		EntryIndex: d.NewFileIndex(),
+		Ext:        ".md",
+		IsDir:      false,
+		ParentPath: d.AbsPath,
 	}
 
-	filePath, err := s.CreateEntry(dir, entry)
+	filePath, err := s.CreateEntry(d, entry)
 	if err != nil {
 		return "", err
 	}

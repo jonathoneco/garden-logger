@@ -81,7 +81,7 @@ This is intended to be integrated to my personal work machine, I wanted a quick 
     - If this gets any attention at all for some reason, I may try to abstract the dependencies a little better so it works for other people, with some sort of config file, but not a priority for me at all right now
 
 
-# Immediate TODOs
+## Immediate TODOs
 - Some QOL logging
 
 ### Requirements

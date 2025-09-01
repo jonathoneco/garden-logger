@@ -10,6 +10,7 @@ import (
 const (
 	RofiExitCodeMoveDown = 10 // Ctrl+Alt+J
 	RofiExitCodeMoveUp   = 11 // Ctrl+Alt+K
+	RofiExitCodeDelete   = 12 // Ctrl+Alt+K
 )
 
 func (m *MenuState) launchMenu() (string, error) {
@@ -42,7 +43,7 @@ func (m *MenuState) launchMenu() (string, error) {
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			selection := strings.TrimSpace(string(output))
-			entry := m.nav.CurrentDirectory().FindEntryFromFilename(selection)
+			entry := m.nav.CurrentDirectory().GetEntryByFilename(selection)
 			switch exitError.ExitCode() {
 			case RofiExitCodeMoveDown:
 				m.nav.CurrentDirectory().MoveEntryDown(entry)
@@ -51,6 +52,9 @@ func (m *MenuState) launchMenu() (string, error) {
 			case RofiExitCodeMoveUp:
 				m.nav.CurrentDirectory().MoveEntryUp(entry)
 				m.Selection = entry.String()
+				return "", nil
+			case RofiExitCodeDelete:
+				m.nav.CurrentDirectory().DeleteEntry(entry)
 				return "", nil
 			}
 		}

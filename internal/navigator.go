@@ -40,6 +40,10 @@ func (n *Navigator) NavigateToParent() error {
 	return n.NavigateTo(parentPath)
 }
 
+func (n *Navigator) Reload() error {
+	return n.currentDir.LoadEntries()
+}
+
 func (n *Navigator) Save() {
 	n.savedDir = n.currentDir
 }
@@ -48,7 +52,7 @@ func (n *Navigator) Restore() (*Directory, error) {
 	if n.savedDir == nil {
 		return nil, fmt.Errorf("no saved directory to restore")
 	}
-	
+
 	restored := n.savedDir
 	n.savedDir = nil
 	return restored, nil
@@ -70,7 +74,7 @@ func (n *Navigator) RestoreTemplate() (string, error) {
 	if n.savedTemplate == "" {
 		return "", fmt.Errorf("no saved template to restore")
 	}
-	
+
 	template := n.savedTemplate
 	n.savedTemplate = ""
 	return template, nil

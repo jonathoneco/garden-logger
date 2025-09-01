@@ -128,7 +128,6 @@ func Browse() error {
 	}
 
 	for {
-
 		choice, err := menu.launchMenu()
 		if err != nil {
 			return err
@@ -143,5 +142,7 @@ func Browse() error {
 		if err != nil {
 			return err
 		}
+
+		menu.nav.Reload()
 	}
 }
