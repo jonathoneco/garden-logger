@@ -36,6 +36,9 @@ I originally modified it a bit to work with my personal system and subdirectorie
 - Support for reordering indexed entries
 - Dir-priority indexing, directories are sorted to the top
 
+### CLI Entry Point
+- CLI Entry point to enable use of the indexing and quality of life functionality from scripts or keyboard shortcuts
+
 ## Dependencies
 This is intended to be integrated to my personal work machine, I wanted a quick and dirty tool to make my life easier so I rely heavily on some other quality of life tools specific to my environment. For more information about how I've configured these, take a look at my dotfiles repo
 - Obsidian
@@ -68,7 +71,6 @@ This is intended to be integrated to my personal work machine, I wanted a quick 
     - This is meant to be a quick-touch tool so I don't want to accidentally delete files or directories while moving around
     - Some sort of "type the note or directories name to confirm deletion" interface
 - Templates
-    - I still need to add the template functionality
     - Support for frontmatter with configurable / auto-populated fields
     - Might be nice to have template defaults for some directories
 - Sync Surface
@@ -80,10 +82,7 @@ This is intended to be integrated to my personal work machine, I wanted a quick 
 
 
 # Immediate TODOs
-- Fix directory creation
-- Template Functionality
 - Some QOL logging
-- Update docs below this point
 
 ### Requirements
 

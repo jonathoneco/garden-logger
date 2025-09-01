@@ -36,7 +36,7 @@ func (d *Directory) LoadEntry(dirEntry os.DirEntry) (*Entry, error) {
 	}
 
 	isDir := dirEntry.IsDir()
-	ext := "/"
+	ext := ""
 	if !isDir {
 		ext = filepath.Ext(dirEntry.Name())
 	}

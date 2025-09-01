@@ -1,73 +1,72 @@
 package internal
 
-import (
-	"fmt"
-	"path/filepath"
-)
-
 type Mode int
 
 const (
 	ModeBrowse Mode = iota
 	ModeNew
 	ModeNewNote
-	ModeNewTemplatedNote
+	ModeNewDirectory
+	ModePickTemplate
 	ModeSettings
 )
 
+func (mode Mode) String() string {
+	switch mode {
+	case ModeBrowse:
+		return "ModeBrowse"
+	case ModeNew:
+		return "ModeNew"
+	case ModeNewNote:
+		return "ModeNewNote"
+	case ModeNewDirectory:
+		return "ModeNewDirectory"
+	case ModePickTemplate:
+		return "ModePickTemplate"
+	case ModeSettings:
+		return "ModeSettings"
+	default:
+		return ""
+	}
+}
+
 type MenuState struct {
-	Dir       *Directory
 	Mode      Mode
 	Selection string
 	config    *Config
-	notes     *NotesService
+	nav       *Navigator
+	notes     *EntryService
 }
 
-func (m *MenuState) formatStatusMessage() string {
-	path := m.Dir.Path
-	return fmt.Sprintf("Path: %s \nIndexing: %s", path, "TEMP")
-}
+// func (m *MenuState) formatStatusMessage() string {
+// 	path := m.nav.CurrentDirectory().Path
+// 	return fmt.Sprintf("Path: %s \nIndexing: %s", path, "TEMP")
+// }
 
 func InitMenuState() (*MenuState, error) {
 	config, err := LoadConfig()
-
 	if err != nil {
 		return nil, err
 	}
 
 	notes := NewNotesService(config)
-	menu := &MenuState{nil, ModeBrowse, "", config, notes}
-	dir, err := notes.LoadDirectory("")
+	nav := NewNavigator(notes)
+
+	err = nav.NavigateTo("")
 	if err != nil {
 		return nil, err
 	}
-	menu.Dir = dir
 
+	menu := &MenuState{ModeBrowse, "", config, nav, notes}
 	return menu, nil
 }
 
-func (m *MenuState) navigateTo(dirPath string) error {
-	dir, err := m.notes.LoadDirectory(dirPath)
-	if err != nil {
-		return err
+func (m *MenuState) getNavigationMenuItems() []string {
+	entries := m.nav.ListEntries()
+	if m.nav.CurrentDirectory().Path != "" {
+		entries = append(entries, MenuBack)
 	}
-	m.Dir = dir
-	m.Selection = ""
-	return nil
-}
-
-func (m *MenuState) navigateToParent() error {
-
-	if m.Dir.Path == "" {
-		return fmt.Errorf("already at root directory")
-	}
-
-	parentPath := filepath.Dir(m.Dir.Path)
-	if parentPath == "." {
-		parentPath = ""
-	}
-
-	return m.navigateTo(parentPath)
+	return entries
 }
 
 func (m *MenuState) getPrompt() string {
@@ -75,7 +74,11 @@ func (m *MenuState) getPrompt() string {
 	case ModeNew:
 		return "New: "
 	case ModeNewNote:
-		return "Enter a name: "
+		return "Enter a file name: "
+	case ModeNewDirectory:
+		return "Enter a folder name: "
+	case ModePickTemplate:
+		return "Pick a template: "
 	case ModeSettings:
 		return "Indexing: "
 	default:
@@ -90,10 +93,14 @@ func (m *MenuState) handleChoice(choice string) error {
 		err = m.handleBrowseChoice(choice)
 	case ModeNew:
 		err = m.handleNewChoice(choice)
+	case ModePickTemplate:
+		err = m.handleTemplateChoice(choice)
 	case ModeSettings:
 		err = m.handleSettingsChoice(choice)
 	case ModeNewNote:
-		err = m.handleNewNoteChoice(choice)
+		err = m.handleNewEntry(choice, false)
+	case ModeNewDirectory:
+		err = m.handleNewEntry(choice, true)
 	}
 
 	return err
@@ -107,6 +114,8 @@ func (m *MenuState) getMenuItems() ([]string, error) {
 		return m.getSettingsMenuItems()
 	case ModeBrowse: // browse
 		return m.getBrowseMenuItems()
+	case ModePickTemplate:
+		return m.getNavigationMenuItems(), nil
 	default:
 		return nil, nil
 	}

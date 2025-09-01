@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	RootDir  string
-	InboxDir string
+	RootDir     string
+	InboxDir    string
+	TemplateDir string
 }
 
 func LoadConfig() (*Config, error) {
@@ -17,8 +18,9 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("GARDEN_LOG_DIR environment variable is not set")
 	}
 	return &Config{
-		RootDir:  rootDir,
-		InboxDir: "01. Inbox",
+		RootDir:     rootDir,
+		InboxDir:    "01. Inbox",
+		TemplateDir: "05. Archive/01. Templates",
 	}, nil
 }
 

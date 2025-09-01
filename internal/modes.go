@@ -3,18 +3,35 @@ package internal
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 )
+
+// General
+
+func (m *MenuState) handleFileSelection(choice string, onFileSelect func(string) error) error {
+	switch choice {
+	case MenuBack:
+		return m.nav.NavigateToParent()
+	default:
+		entry := m.nav.CurrentDirectory().FindEntryFromFilename(choice)
+		if entry == nil {
+			return fmt.Errorf("entry not found: %q", choice)
+		}
+
+		fullPath := filepath.Join(m.nav.CurrentDirectory().Path, choice)
+		if entry.IsDir {
+			return m.nav.NavigateTo(fullPath)
+		} else {
+			return onFileSelect(fullPath)
+		}
+	}
+}
 
 // Browse Mode
 
 func (m *MenuState) getBrowseMenuItems() ([]string, error) {
 	items := []string{MenuNew, MenuSettings}
 
-	items = append(items, m.Dir.ListEntries()...)
-	if m.Dir.Path != "" {
-		items = append(items, MenuBack)
-	}
+	items = append(items, m.getNavigationMenuItems()...)
 	items = append(items, MenuOpenCurrentFolder)
 	return items, nil
 }
@@ -23,34 +40,15 @@ func (m *MenuState) handleBrowseChoice(choice string) error {
 	switch choice {
 	case MenuNew:
 		m.Mode = ModeNew
+		return nil
 	case MenuSettings:
 		m.Mode = ModeSettings
-	case MenuBack:
-		err := m.navigateToParent()
-		if err != nil {
-			return err
-		}
+		return nil
 	case MenuOpenCurrentFolder:
-		return m.notes.LaunchDirectoryEditor(m.Dir.Path)
-	default:
-		if strings.HasSuffix(choice, "/") {
-			newDirPath := filepath.Join(m.Dir.Path, choice)
-			err := m.navigateTo(newDirPath)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-
-		if strings.HasSuffix(strings.ToLower(choice), ".md") {
-			fullFilePath := filepath.Join(m.Dir.Path, choice)
-			return m.notes.LaunchNoteEditor(fullFilePath)
-		}
-
-		return fmt.Errorf("unexpected menu choice %q in %s mode", choice, m.Mode)
+		return m.notes.LaunchDirectoryEditor(m.nav.CurrentDirectory().Path)
 	}
 
-	return nil
+	return m.handleFileSelection(choice, m.notes.LaunchNoteEditor)
 }
 
 // New Mode
@@ -62,9 +60,25 @@ func getNewMenuItems() ([]string, error) {
 func (m *MenuState) handleNewChoice(choice string) error {
 	switch choice {
 	case MenuNewNote:
+		if m.nav.CurrentDirectory().Path == "" {
+			err := m.nav.NavigateTo(m.config.InboxDir)
+			if err != nil {
+				return err
+			}
+		}
 		m.Mode = ModeNewNote
 	case MenuNewDirectory:
+		m.Mode = ModeNewDirectory
 	case MenuNewNoteFromTemplate:
+		if m.nav.CurrentDirectory().Path == "" {
+			err := m.nav.NavigateTo(m.config.InboxDir)
+			if err != nil {
+				return err
+			}
+		}
+		m.nav.Save()
+		m.nav.NavigateTo(m.config.TemplateDir)
+		m.Mode = ModePickTemplate
 	case MenuBack:
 		m.Mode = ModeBrowse
 	}
@@ -73,14 +87,25 @@ func (m *MenuState) handleNewChoice(choice string) error {
 
 // New Note Mode
 
-func getNewNoteMenuItems() ([]string, error) {
-	return nil, nil
-}
+func (m *MenuState) handleNewEntry(choice string, isDir bool) error {
+	var filePath string
+	var err error
 
-func (m *MenuState) handleNewNoteChoice(choice string) error {
-	filePath, err := m.notes.CreateNoteFromUserInput(m.Dir, choice)
+	templatePath, templateErr := m.nav.RestoreTemplate()
+	if templateErr == nil {
+		filePath, err = m.notes.CreateEntryFromTemplate(m.nav.CurrentDirectory(), choice, templatePath)
+	} else {
+		filePath, err = m.notes.CreateEntryFromUserInput(m.nav.CurrentDirectory(), choice, isDir)
+	}
+
 	if err != nil {
 		return err
+	}
+
+	m.Mode = ModeBrowse
+
+	if isDir {
+		return m.nav.NavigateTo(m.nav.CurrentDirectory().Path)
 	}
 
 	return m.notes.LaunchNoteEditor(filePath)
@@ -90,14 +115,14 @@ func (m *MenuState) handleNewNoteChoice(choice string) error {
 
 func formatSelectedOption(text string, selected bool) string {
 	if selected {
-		return text + " ✓"
+		return text + "   ✓"
 	}
 	return text
 }
 
 func (m *MenuState) getSettingsMenuItems() ([]string, error) {
 	menuItems := []string{
-		formatSelectedOption(MenuIndexSetting, m.Dir.IsIndexed),
+		formatSelectedOption(MenuIndexSetting, m.nav.CurrentDirectory().IsIndexed),
 		MenuBack,
 	}
 
@@ -105,20 +130,40 @@ func (m *MenuState) getSettingsMenuItems() ([]string, error) {
 }
 
 func (m *MenuState) handleSettingsChoice(choice string) error {
+	currentDir := m.nav.CurrentDirectory()
 
 	switch choice {
 	case MenuIndexSetting:
-		m.Dir.ApplyNumericIndexing()
+		currentDir.ApplyNumericIndexing()
 	case formatSelectedOption(MenuIndexSetting, true):
-		m.Dir.RemoveIndexing()
+		currentDir.RemoveIndexing()
 	}
 
-	dir, err := m.notes.LoadDirectory(m.Dir.Path)
+	err := m.nav.NavigateTo(currentDir.Path)
 	if err != nil {
 		return err
 	}
-	m.Dir = dir
 
 	m.Mode = ModeBrowse
 	return nil
+}
+
+// Template Mode
+
+func (m *MenuState) handleTemplateChoice(choice string) error {
+	return m.handleFileSelection(choice, func(templatePath string) error {
+		originalDir, err := m.nav.Restore()
+		if err != nil {
+			return err
+		}
+
+		err = m.nav.NavigateTo(originalDir.Path)
+		if err != nil {
+			return err
+		}
+
+		m.nav.SaveTemplate(templatePath)
+		m.Mode = ModeNewNote
+		return nil
+	})
 }

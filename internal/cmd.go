@@ -29,10 +29,10 @@ func (m *MenuState) launchMenu() (string, error) {
 		}
 	}
 
-	if m.Dir != nil {
-		statusMsg := m.formatStatusMessage()
-		args = append(args, "-mesg", statusMsg)
-	}
+	// if m.nav.CurrentDirectory() != nil {
+	// 	statusMsg := m.formatStatusMessage()
+	// 	args = append(args, "-mesg", statusMsg)
+	// }
 
 	cmd := exec.Command("rofi-launcher", args...)
 	menuInput := strings.Join(items, "\n")
@@ -42,14 +42,14 @@ func (m *MenuState) launchMenu() (string, error) {
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			selection := strings.TrimSpace(string(output))
-			entry := m.Dir.FindEntryFromFilename(selection)
+			entry := m.nav.CurrentDirectory().FindEntryFromFilename(selection)
 			switch exitError.ExitCode() {
 			case RofiExitCodeMoveDown:
-				m.Dir.MoveEntryDown(entry)
+				m.nav.CurrentDirectory().MoveEntryDown(entry)
 				m.Selection = entry.String()
 				return "", nil
 			case RofiExitCodeMoveUp:
-				m.Dir.MoveEntryUp(entry)
+				m.nav.CurrentDirectory().MoveEntryUp(entry)
 				m.Selection = entry.String()
 				return "", nil
 			}

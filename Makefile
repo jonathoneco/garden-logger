@@ -2,6 +2,7 @@
 
 # Variables
 BINARY_NAME=garden-logger
+CLI_BINARY_NAME=garden-logger-cli
 BUILD_DIR=.
 INSTALL_DIR=$(HOME)/.local/bin
 
@@ -13,25 +14,29 @@ all: build
 .PHONY: build
 build:
 	go build -o $(BINARY_NAME) ./cmd/garden-logger
+	go build -o $(CLI_BINARY_NAME) ./cmd/garden-logger-cli
 
 # Clean build artifacts
 .PHONY: clean
 clean:
-	rm -f $(BINARY_NAME)
+	rm -f $(BINARY_NAME) $(CLI_BINARY_NAME)
 
 # Install for current user
 .PHONY: install
 install: build
 	mkdir -p $(INSTALL_DIR)
 	cp $(BINARY_NAME) $(INSTALL_DIR)/
+	cp $(CLI_BINARY_NAME) $(INSTALL_DIR)/
 	@echo "Installed to $(INSTALL_DIR)/$(BINARY_NAME)"
+	@echo "Installed to $(INSTALL_DIR)/$(CLI_BINARY_NAME)"
 	@echo "Make sure $(INSTALL_DIR) is in your PATH"
 
 # Uninstall from user directory
 .PHONY: uninstall
 uninstall:
-	rm -f $(INSTALL_DIR)/$(BINARY_NAME)
+	rm -f $(INSTALL_DIR)/$(BINARY_NAME) $(INSTALL_DIR)/$(CLI_BINARY_NAME)
 	@echo "Removed $(INSTALL_DIR)/$(BINARY_NAME)"
+	@echo "Removed $(INSTALL_DIR)/$(CLI_BINARY_NAME)"
 
 # Run the application
 .PHONY: run
