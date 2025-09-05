@@ -290,19 +290,15 @@ func (d *Directory) InsertEntry(e *Entry) error {
 		return nil
 	}
 
-	index := e.EntryIndex - 1
-	d.Entries = slices.Insert(d.Entries, index, e)
-	for i := index + 1; i < len(d.Entries); i++ {
-		entry := d.Entries[i]
+	d.Entries = append(d.Entries, e)
+	for _, entry := range d.Entries {
 		if entry.IsAnchor() {
 			continue
 		}
-		err := entry.Move(entry.EntryIndex + 1)
-		if err != nil {
-			return err
+		if entry.EntryIndex >= e.EntryIndex {
+			entry.Move(entry.EntryIndex + 1)
 		}
 	}
-
 	return nil
 }
 

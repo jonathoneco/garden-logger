@@ -134,7 +134,7 @@ func Browse() error {
 		}
 
 		// Skip handling if choice is empty (file movement operations return empty string)
-		if choice == "" {
+		if choice == "" && menu.Mode != ModeNewNote {
 			continue
 		}
 

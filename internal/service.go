@@ -102,7 +102,6 @@ func (s *EntryService) LaunchNoteEditor(filePath string) error {
 }
 
 func (s *EntryService) LaunchDirectoryEditor(dirPath string) error {
-
 	fullPath := filepath.Join(s.config.RootDir, dirPath)
 
 	cmd := exec.Command("kitty", "-e", "tmux-sessionizer", fullPath)
